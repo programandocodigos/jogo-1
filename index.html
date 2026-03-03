@@ -1,54 +1,75 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Box Fight Shooter | Procedural 2D Action</title>
-    <meta name="description" content="A fast-paced procedural box-fight shooter game built with HTML5 Canvas. Survive corridors and eliminate the bot.">
+    <title>Box Fight 3D | Magnum 357 Edition</title>
+    <meta name="description" content="3D First Person Shooter - Box Fight style with procedural maps.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nosifer&display=swap"
+        rel="stylesheet">
+    <!-- Three.js CDN -->
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+          }
+        }
+    </script>
 </head>
+
 <body>
     <div id="game-container">
+        <!-- Crosshair -->
+        <div id="crosshair"></div>
+
+        <!-- Victory HUD -->
+        <div id="victory-badge" class="hidden">VITÓRIA</div>
+
+        <!-- HUD -->
         <header id="hud" class="glass">
+            <div id="game-title">GLADIADORES 3D</div>
             <div class="stats">
                 <div class="stat-item">
-                    <span class="label">PONTOS:</span>
-                    <span id="score-val" class="value">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="label">MAPA:</span>
-                    <span id="level-val" class="value">1</span>
+                    <span id="level-label">Fase: </span><span id="level-val">1</span>
                 </div>
             </div>
-            <div id="game-title">BOX FIGHT</div>
-            <div id="status-display" class="hidden">VITÓRIA!</div>
         </header>
 
-        <canvas id="game-canvas"></canvas>
-
-        <div id="controls-hint" class="glass">
-            <p><strong>WASD</strong>: Mover • <strong>MOUSE</strong>: Mirar • <strong>CLIQUE</strong>: Atirar</p>
-        </div>
-
+        <!-- Overlays -->
         <div id="start-overlay" class="overlay">
             <div class="content glass">
-                <h1>BOX FIGHT</h1>
-                <p>Elimine o bot para progredir. O labirinto muda a cada vitória.</p>
-                <button id="start-btn" class="glow-btn">INICIAR JOGO</button>
+                <h1>BOX FIGHT 3D</h1>
+                <p>Elimine o bot para vencer. Use a Magnum 357.</p>
+                <button id="start-btn" class="glow-btn">ENTRAR NA ARENA</button>
             </div>
+        </div>
+
+        <div id="game-over-overlay" class="overlay hidden">
+            <h1 class="blood-text">GAME OVER</h1>
+            <div class="blood-drip"></div>
+            <button id="retry-btn" class="glow-btn">REENTRAR</button>
         </div>
 
         <div id="victory-overlay" class="overlay hidden">
-            <div class="content glass">
-                <h2 class="animate-pulse">BOT ELIMINADO!</h2>
-                <div class="dance-icon">🕺</div>
-                <p>Gerando novo mapa...</p>
+            <div class="content no-bg">
+                <h2 class="victory-text animate-bounce">VITÓRIA!</h2>
+                <p>Dançando Dally...</p>
+                <div id="countdown">3</div>
             </div>
         </div>
+
+        <!-- Audio elements (placeholder for dally music) -->
+        <audio id="dally-music" loop>
+            <source src="assets/dally.mp3" type="audio/mpeg">
+        </audio>
     </div>
-    <script src="game.js"></script>
+
+    <script type="module" src="game.js"></script>
 </body>
+
 </html>
