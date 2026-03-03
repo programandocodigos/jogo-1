@@ -1,19 +1,18 @@
 :root {
-    --bg-dark: #0a0e14;
+    --bg-dark: #050505;
     --primary: #6366f1;
     --secondary: #e11d48;
-    --accent: #10b981;
+    --blood: #8b0000;
     --text-light: #f8fafc;
-    --glass-bg: rgba(255, 255, 255, 0.05);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --blur: blur(12px);
     --font-outfit: 'Outfit', sans-serif;
+    --font-nosifer: 'Nosifer', cursive;
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    user-select: none;
 }
 
 body {
@@ -22,171 +21,216 @@ body {
     font-family: var(--font-outfit);
     overflow: hidden;
     height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
 }
 
 #game-container {
+    width: 100vw;
+    height: 100vh;
     position: relative;
-    width: 800px;
-    height: 800px;
-    background: #111827;
-    border-radius: 12px;
-    box-shadow: 0 0 40px rgba(0,0,0,0.5);
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
-header#hud {
+/* Crosshair */
+#crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 50;
+}
+
+#crosshair::before,
+#crosshair::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+#crosshair::before {
+    width: 10px;
+    height: 2px;
+    top: 7px;
+    left: 3px;
+}
+
+#crosshair::after {
+    width: 2px;
+    height: 10px;
+    top: 3px;
+    left: 7px;
+}
+
+/* HUD */
+#hud {
     position: absolute;
     top: 20px;
     left: 20px;
     right: 20px;
-    height: 80px;
+    padding: 15px 30px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 30px;
     z-index: 10;
+    background: rgba(10, 10, 10, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
 }
 
 #game-title {
     font-weight: 900;
-    font-size: 1.5rem;
     letter-spacing: 2px;
     color: var(--primary);
 }
 
-.stats {
-    display: flex;
-    gap: 20px;
+.stat-item {
+    font-weight: 700;
+    font-size: 1.2rem;
 }
 
-.stat-item {
+/* Overlays */
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
     display: flex;
     flex-direction: column;
+    justify-content: center;
     align-items: center;
-}
-
-.label {
-    font-size: 0.7rem;
-    opacity: 0.6;
-    letter-spacing: 1px;
-}
-
-.value {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--accent);
-}
-
-#status-display {
-    padding: 8px 16px;
-    border-radius: 4px;
-    background: var(--accent);
-    color: #000;
-    font-weight: 900;
-    letter-spacing: 1px;
+    z-index: 100;
 }
 
 .hidden {
     display: none !important;
 }
 
-#game-canvas {
-    width: 800px;
-    height: 800px;
-    display: block;
-    cursor: crosshair;
-}
-
-#controls-hint {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 10px 24px;
-    z-index: 10;
-    font-size: 0.9rem;
-    white-space: nowrap;
+.content {
+    padding: 40px;
+    text-align: center;
+    border-radius: 20px;
 }
 
 .glass {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: var(--blur);
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
 }
 
-.overlay {
+/* Blood Effect for Game Over */
+.blood-text {
+    font-family: var(--font-nosifer);
+    font-size: 8rem;
+    color: var(--blood);
+    text-shadow: 0 0 30px #000, 0 10px 20px rgba(0, 0, 0, 0.8);
+    margin-bottom: 30px;
+    position: relative;
+    z-index: 101;
+}
+
+#game-over-overlay {
+    background: radial-gradient(circle, rgba(139, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.95) 100%);
+}
+
+.blood-drip {
     position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-}
-
-.overlay.hidden {
+    top: -100px;
+    left: 0;
+    width: 100%;
+    height: 150%;
+    background: url('https://www.transparenttextures.com/patterns/blood-spatter.png'), linear-gradient(to bottom, var(--blood) 0%, transparent 100%);
+    opacity: 0.6;
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.5s ease;
+    animation: flowDown 8s linear infinite;
+    mask-image: linear-gradient(to bottom, black, transparent);
 }
 
-.overlay .content {
-    padding: 40px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    max-width: 400px;
+@keyframes dripText {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
 }
 
-h1 {
-    font-size: 3rem;
+@keyframes flowDown {
+    0% {
+        transform: translateY(-30%);
+    }
+
+    100% {
+        transform: translateY(30%);
+    }
+}
+
+/* Victory Styling */
+.victory-text {
+    font-size: 6rem;
     font-weight: 900;
-    background: linear-gradient(to right, var(--primary), var(--secondary));
+    background: linear-gradient(to bottom, #fbbf24, #d97706);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    text-shadow: 0 10px 30px rgba(217, 119, 6, 0.5);
+}
+
+#victory-badge {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--primary);
+    color: white;
+    padding: 10px 40px;
+    font-weight: 900;
+    font-size: 3rem;
+    border-radius: 50px;
+    box-shadow: 0 0 50px var(--primary);
+    z-index: 60;
 }
 
 .glow-btn {
     background: var(--primary);
-    color: #fff;
+    color: white;
+    padding: 15px 40px;
     border: none;
-    padding: 16px 32px;
     border-radius: 8px;
-    font-family: inherit;
+    font-size: 1.2rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+    transition: 0.3s;
+    box-shadow: 0 0 15px var(--primary);
 }
 
 .glow-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 25px rgba(99, 102, 241, 0.5);
+    transform: scale(1.1);
+    box-shadow: 0 0 30px var(--primary);
 }
 
-.animate-pulse {
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 0.8; }
-    50% { transform: scale(1.1); opacity: 1; }
-    100% { transform: scale(1); opacity: 0.8; }
-}
-
-.dance-icon {
-    font-size: 4rem;
+.animate-bounce {
     animation: bounce 0.5s infinite alternate;
 }
 
 @keyframes bounce {
-    from { transform: translateY(0); }
-    to { transform: translateY(-20px); }
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-20px);
+    }
+}
+
+#countdown {
+    font-size: 4rem;
+    font-weight: 900;
+    margin-top: 20px;
+    color: white;
 }

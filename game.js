@@ -1,507 +1,406 @@
-/**
- * Box Fight Shooter - Logic
- * Developed by AntiGravity
- */
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
-const scoreEl = document.getElementById('score-val');
-const levelEl = document.getElementById('level-val');
+// --- CONFIGURATION ---
+const WALL_HEIGHT = 5;
+const ARENA_SIZE = 40;
+const GRID_SIZE = 10;
+const TILE_SIZE = ARENA_SIZE / GRID_SIZE;
+const PLAYER_HEIGHT = 1.7;
+const BOT_SPEED = 0.08;
+const PLAYER_SPEED = 0.15;
+
+// --- DOM ELEMENTS ---
 const startBtn = document.getElementById('start-btn');
+const retryBtn = document.getElementById('retry-btn');
 const startOverlay = document.getElementById('start-overlay');
+const gameOverOverlay = document.getElementById('game-over-overlay');
 const victoryOverlay = document.getElementById('victory-overlay');
+const victoryBadge = document.getElementById('victory-badge');
+const levelVal = document.getElementById('level-val');
+const countdownEl = document.getElementById('countdown');
+const dallyMusic = document.getElementById('dally-music');
 
-// Configuration
-const GRID_SIZE = 20;
-const TILE_SIZE = 40; // 800 / 20
-const PLAYER_SPEED = 4;
-const BASE_BOT_SPEED = 2;
-const BULLET_SPEED = 7;
-const BOT_SHOOT_INTERVAL = 1500; // ms
-
-// Game State
-let gameState = 'START'; // START, PLAYING, VICTORY
-let score = 0;
+// --- GAME STATE ---
+let gameState = 'START';
 let level = 1;
 let walls = [];
-let player = null;
-let bot = null;
 let bullets = [];
 let keys = {};
-let mouse = { x: 0, y: 0 };
+let isADS = false; // Aim Down Sights
 
-// Setup Canvas size
-canvas.width = 800;
-canvas.height = 800;
+// --- THREE.JS SETUP ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a0a);
+scene.fog = new THREE.Fog(0x0a0a0a, 0, 30);
 
-// --- Entity Classes ---
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+document.getElementById('game-container').appendChild(renderer.domElement);
 
-class Wall {
-    constructor(x, y, w, h) {
-        this.x = x;
-        this.y = y;
-        this.w = w;
-        this.h = h;
-    }
+const controls = new PointerLockControls(camera, document.body);
 
-    draw() {
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(this.x, this.y, this.w, this.h);
+// --- LIGHTING ---
+const ambientLight = new THREE.AmbientLight(0x404040, 2);
+scene.add(ambientLight);
 
-        // Border
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(this.x, this.y, this.w, this.h);
+const pointLight = new THREE.PointLight(0x6366f1, 50, 100);
+pointLight.position.set(0, 10, 0);
+scene.add(pointLight);
 
-        // Inner highlight
-        ctx.fillStyle = '#2d3748';
-        ctx.fillRect(this.x + 4, this.y + 4, this.w - 8, this.h - 8);
+// --- ASSETS: MAGNUM 357 ---
+const weaponGroup = new THREE.Group();
+camera.add(weaponGroup);
+scene.add(camera);
+
+function createMagnum357() {
+    // Basic Revolver Mesh (Group of Boxes)
+    const material = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 });
+
+    // Barrel
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), material);
+    barrel.position.set(0, -0.15, -0.4);
+
+    // Body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.3), material);
+    body.position.set(0, -0.15, -0.2);
+
+    // Grip
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.1), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
+    grip.position.set(0, -0.3, -0.1);
+    grip.rotation.x = -0.3;
+
+    // Cylinder
+    const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.2, 8), material);
+    cylinder.rotation.x = Math.PI / 2;
+    cylinder.position.set(0, -0.12, -0.2);
+
+    weaponGroup.add(barrel, body, grip, cylinder);
+    weaponGroup.position.set(0.3, -0.1, -0.1); // Default right-hand position
+}
+createMagnum357();
+
+// --- MAP GENERATION ---
+const floorGeo = new THREE.PlaneGeometry(ARENA_SIZE, ARENA_SIZE);
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+function generateMaze() {
+    // Clear old walls
+    walls.forEach(w => scene.remove(w));
+    walls = [];
+
+    // Outer Walls
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5 });
+    const addWall = (x, z, w, d) => {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_HEIGHT, d), wallMat);
+        wall.position.set(x, WALL_HEIGHT / 2, z);
+        scene.add(wall);
+        walls.push(wall);
+    };
+
+    // Perimeter
+    addWall(0, ARENA_SIZE / 2, ARENA_SIZE, 1);
+    addWall(0, -ARENA_SIZE / 2, ARENA_SIZE, 1);
+    addWall(ARENA_SIZE / 2, 0, 1, ARENA_SIZE);
+    addWall(-ARENA_SIZE / 2, 0, 1, ARENA_SIZE);
+
+    // Procedural inner blocks
+    const density = Math.min(0.2 + level * 0.05, 0.5);
+    for (let i = -GRID_SIZE / 2 + 2; i < GRID_SIZE / 2 - 2; i += 2) {
+        for (let j = -GRID_SIZE / 2 + 2; j < GRID_SIZE / 2 - 2; j += 2) {
+            if (Math.random() < density) {
+                addWall(i * TILE_SIZE, j * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
+        }
     }
 }
 
-class Player {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.radius = 15;
-        this.angle = 0;
-        this.scale = 1;
-        this.rotation = 0;
-    }
-
-    update() {
-        if (gameState !== 'PLAYING') return;
-
-        // Movement
-        let dx = 0;
-        let dy = 0;
-        if (keys['w'] || keys['ArrowUp']) dy -= PLAYER_SPEED;
-        if (keys['s'] || keys['ArrowDown']) dy += PLAYER_SPEED;
-        if (keys['a'] || keys['ArrowLeft']) dx -= PLAYER_SPEED;
-        if (keys['d'] || keys['ArrowRight']) dx += PLAYER_SPEED;
-
-        // Normalize diagonal speed
-        if (dx !== 0 && dy !== 0) {
-            dx *= 0.7071;
-            dy *= 0.7071;
-        }
-
-        // Collision detection X
-        this.x += dx;
-        if (this.checkWallCollision()) this.x -= dx;
-
-        // Collision detection Y
-        this.y += dy;
-        if (this.checkWallCollision()) this.y -= dy;
-
-        // Aiming
-        const rect = canvas.getBoundingClientRect();
-        const mx = mouse.x - rect.left;
-        const my = mouse.y - rect.top;
-        this.angle = Math.atan2(my - this.y, mx - this.x);
-    }
-
-    checkWallCollision() {
-        for (let wall of walls) {
-            if (this.x + this.radius > wall.x &&
-                this.x - this.radius < wall.x + wall.w &&
-                this.y + this.radius > wall.y &&
-                this.y - this.radius < wall.y + wall.h) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle + this.rotation);
-        ctx.scale(this.scale, this.scale);
-
-        // Body
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#6366f1';
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Gun/Facing indicator
-        ctx.fillStyle = '#4338ca';
-        ctx.fillRect(this.radius - 5, -5, 15, 10);
-        ctx.strokeRect(this.radius - 5, -5, 15, 10);
+// --- BOT ---
+class Bot {
+    constructor() {
+        this.mesh = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1.2, 4, 8), new THREE.MeshStandardMaterial({ color: 0xe11d48 }));
+        body.position.y = 1;
+        this.mesh.add(body);
 
         // Eyes
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(5, -6, 3, 0, Math.PI * 2);
-        ctx.arc(5, 6, 3, 0, Math.PI * 2);
-        ctx.fill();
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08), eyeMat);
+        eye.position.set(0.15, 1.4, -0.3);
+        const eye2 = eye.clone();
+        eye2.position.x = -0.15;
+        this.mesh.add(eye, eye2);
 
-        ctx.restore();
+        scene.add(this.mesh);
+        this.reset();
+        this.lastShotTime = 0;
     }
 
-    startVictoryAnimation() {
-        let startTime = Date.now();
-        const anim = () => {
-            let elapsed = Date.now() - startTime;
-            if (elapsed < 2000) {
-                // Pulse and spin
-                const t = elapsed / 2000;
-                this.scale = 1 + Math.sin(elapsed * 0.01) * 0.3;
-                this.rotation = (elapsed * 0.02) % (Math.PI * 2);
-                requestAnimationFrame(anim);
-            } else {
-                this.scale = 1;
-                this.rotation = 0;
-            }
-        };
-        anim();
-    }
-}
-
-class Bot {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.radius = 15;
-        this.angle = 0;
-        this.targetAngle = 0;
-        this.state = 'WANDER'; // WANDER, CHASE
-        this.lastShot = 0;
-        this.velocity = { x: 0, y: 0 };
-        this.wanderTimer = 0;
-        this.speed = BASE_BOT_SPEED + Math.min(level * 0.1, 2);
+    reset() {
+        this.mesh.position.set(
+            (Math.random() - 0.5) * (ARENA_SIZE - 5),
+            0,
+            (Math.random() - 0.5) * (ARENA_SIZE - 5)
+        );
+        this.targetAngle = Math.random() * Math.PI * 2;
+        this.alive = true;
     }
 
     update() {
-        if (gameState !== 'PLAYING') return;
+        if (!this.alive || gameState !== 'PLAYING') return;
 
-        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+        const distToPlayer = this.mesh.position.distanceTo(camera.position);
 
-        //Vision check
-        let canSeePlayer = distToPlayer < 350;
-
-        if (canSeePlayer) {
-            this.state = 'CHASE';
-        } else if (distToPlayer > 450) {
-            this.state = 'WANDER';
-        }
-
-        if (this.state === 'CHASE') {
-            const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
-            // Smoothly rotate towards player
-            let diff = angleToPlayer - this.angle;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            this.angle += diff * 0.1;
-
-            // Move towards player but keep some distance
-            if (distToPlayer > 180) {
-                this.velocity.x = Math.cos(this.angle) * this.speed;
-                this.velocity.y = Math.sin(this.angle) * this.speed;
-            } else {
-                this.velocity.x = 0;
-                this.velocity.y = 0;
+        // IA: Perseguir ou Vagar
+        if (distToPlayer < 12) {
+            // Chase
+            this.mesh.lookAt(camera.position.x, 0, camera.position.z);
+            const dir = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
+            if (distToPlayer > 5) {
+                this.mesh.position.addScaledVector(dir, BOT_SPEED);
             }
 
-            // Shoot
-            if (Date.now() - this.lastShot > BOT_SHOOT_INTERVAL) {
+            // Shoot at player
+            if (Date.now() - this.lastShotTime > 1500) {
                 this.shoot();
-                this.lastShot = Date.now();
+                this.lastShotTime = Date.now();
             }
         } else {
             // Wander
-            if (Date.now() > this.wanderTimer) {
-                this.targetAngle = Math.random() * Math.PI * 2;
-                this.wanderTimer = Date.now() + 2000 + Math.random() * 2000;
+            this.mesh.rotation.y += (this.targetAngle - this.mesh.rotation.y) * 0.05;
+            const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.mesh.quaternion);
+            this.mesh.position.addScaledVector(dir, BOT_SPEED * 0.5);
+
+            if (Math.random() < 0.01) this.targetAngle = Math.random() * Math.PI * 2;
+        }
+
+        // Collision with walls
+        walls.forEach(w => {
+            const box = new THREE.Box3().setFromObject(w);
+            const botBox = new THREE.Box3().setFromCenterAndSize(this.mesh.position, new THREE.Vector3(1, 2, 1));
+            if (box.intersectsBox(botBox)) {
+                this.mesh.position.y = 0; // Fix snap
+                const pushDir = new THREE.Vector3().subVectors(this.mesh.position, w.position).normalize();
+                this.mesh.position.addScaledVector(pushDir, 0.2);
             }
-
-            let diff = this.targetAngle - this.angle;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            this.angle += diff * 0.05;
-
-            this.velocity.x = Math.cos(this.angle) * this.speed * 0.7;
-            this.velocity.y = Math.sin(this.angle) * this.speed * 0.7;
-        }
-
-        // Apply movement with collision
-        this.x += this.velocity.x;
-        if (this.checkWallCollision()) {
-            this.x -= this.velocity.x;
-            this.targetAngle += Math.PI;
-            if (this.state === 'CHASE') this.state = 'WANDER';
-        }
-
-        this.y += this.velocity.y;
-        if (this.checkWallCollision()) {
-            this.y -= this.velocity.y;
-            this.targetAngle += Math.PI;
-            if (this.state === 'CHASE') this.state = 'WANDER';
-        }
-    }
-
-    checkWallCollision() {
-        for (let wall of walls) {
-            if (this.x + this.radius > wall.x &&
-                this.x - this.radius < wall.x + wall.w &&
-                this.y + this.radius > wall.y &&
-                this.y - this.radius < wall.y + wall.h) {
-                return true;
-            }
-        }
-        return false;
+        });
     }
 
     shoot() {
-        bullets.push(new Bullet(this.x, this.y, this.angle, 'BOT'));
-    }
-
-    draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
-
-        // Body
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#e11d48';
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Gun
-        ctx.fillStyle = '#9f1239';
-        ctx.fillRect(this.radius - 5, -5, 15, 10);
-        ctx.strokeRect(this.radius - 5, -5, 15, 10);
-
-        // Angry Eyes
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.moveTo(3, -8); ctx.lineTo(10, -5); ctx.lineTo(10, -2); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(3, 8); ctx.lineTo(10, 5); ctx.lineTo(10, 2); ctx.fill();
-
-        ctx.restore();
+        const dir = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
+        createProjectile(this.mesh.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'BOT');
     }
 }
 
-class Bullet {
-    constructor(x, y, angle, owner) {
-        this.x = x;
-        this.y = y;
-        this.angle = angle;
-        this.owner = owner; // 'PLAYER' or 'BOT'
-        this.radius = 4;
-        this.speed = BULLET_SPEED;
-        this.active = true;
-    }
+let bot = new Bot();
 
-    update() {
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
+// --- PROJECTILES ---
+function createProjectile(pos, dir, owner) {
+    const geo = new THREE.SphereGeometry(0.05);
+    const mat = new THREE.MeshBasicMaterial({ color: owner === 'PLAYER' ? 0xfbbf24 : 0xff0000 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(pos);
+    scene.add(mesh);
+    bullets.push({ mesh, dir, owner, time: 0 });
+}
+
+function updateProjectiles() {
+    bullets.forEach((b, i) => {
+        b.mesh.position.addScaledVector(b.dir, 0.6);
+        b.time++;
 
         // Wall collision
-        for (let wall of walls) {
-            if (this.x > wall.x && this.x < wall.x + wall.w &&
-                this.y > wall.y && this.y < wall.y + wall.h) {
-                this.active = false;
-                return;
+        walls.forEach(w => {
+            const box = new THREE.Box3().setFromObject(w);
+            if (box.containsPoint(b.mesh.position)) {
+                scene.remove(b.mesh);
+                bullets.splice(i, 1);
             }
-        }
+        });
 
-        // Entity collision
-        if (this.owner === 'PLAYER') {
-            const dist = Math.hypot(bot.x - this.x, bot.y - this.y);
-            if (dist < bot.radius + this.radius) {
-                this.active = false;
+        // Player/Bot collision
+        if (b.owner === 'PLAYER') {
+            if (b.mesh.position.distanceTo(bot.mesh.position) < 1.2) {
                 onBotKilled();
+                scene.remove(b.mesh);
+                bullets.splice(i, 1);
             }
         } else {
-            const dist = Math.hypot(player.x - this.x, player.y - this.y);
-            if (dist < player.radius + this.radius) {
-                this.active = false;
+            if (b.mesh.position.distanceTo(camera.position) < 1) {
+                onPlayerKilled();
+                scene.remove(b.mesh);
+                bullets.splice(i, 1);
             }
         }
 
-        // Screen bounds
-        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
-            this.active = false;
+        if (b.time > 200) {
+            scene.remove(b.mesh);
+            bullets.splice(i, 1);
         }
-    }
-
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.owner === 'PLAYER' ? '#fbbf24' : '#f87171';
-        ctx.fill();
-
-        ctx.strokeStyle = this.owner === 'PLAYER' ? 'rgba(251, 191, 36, 0.4)' : 'rgba(248, 113, 113, 0.4)';
-        ctx.lineWidth = 10;
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x - Math.cos(this.angle) * 15, this.y - Math.sin(this.angle) * 15);
-        ctx.stroke();
-    }
+    });
 }
 
-// --- World Generation ---
-
-function generateMap() {
-    walls = [];
-
-    // Borders
-    const BORDER = 20;
-    walls.push(new Wall(0, 0, canvas.width, BORDER));
-    walls.push(new Wall(0, canvas.height - BORDER, canvas.width, BORDER));
-    walls.push(new Wall(0, 0, BORDER, canvas.height));
-    walls.push(new Wall(canvas.width - BORDER, 0, BORDER, canvas.height));
-
-    const density = Math.min(0.3 + level * 0.02, 0.6);
-
-    for (let i = 2; i < GRID_SIZE - 2; i += 2) {
-        for (let j = 2; j < GRID_SIZE - 2; j += 2) {
-            if (Math.random() < density) {
-                let w = TILE_SIZE;
-                let h = TILE_SIZE;
-                if (Math.random() > 0.5) w *= 2;
-                else h *= 2;
-
-                walls.push(new Wall(i * TILE_SIZE, j * TILE_SIZE, w, h));
-            }
-        }
-    }
-
-    spawnPlayerAndBot();
-}
-
-function spawnPlayerAndBot() {
-    const getClearSpot = () => {
-        let x, y, tries = 0;
-        let clear = false;
-        while (!clear && tries < 500) {
-            x = 60 + Math.random() * (canvas.width - 120);
-            y = 60 + Math.random() * (canvas.height - 120);
-            clear = !checkSpotCollision(x, y);
-            tries++;
-        }
-        return { x, y };
-    };
-
-    function checkSpotCollision(x, y) {
-        for (let wall of walls) {
-            const buffer = 30;
-            if (x + buffer > wall.x && x - buffer < wall.x + wall.w &&
-                y + buffer > wall.y && y - buffer < wall.y + wall.h) return true;
-        }
-        return false;
-    }
-
-    const pSpot = getClearSpot();
-    player = new Player(pSpot.x, pSpot.y);
-
-    let bSpot;
-    let tries = 0;
-    do {
-        bSpot = getClearSpot();
-        tries++;
-    } while (Math.hypot(bSpot.x - pSpot.x, bSpot.y - pSpot.y) < 300 && tries < 100);
-
-    bot = new Bot(bSpot.x, bSpot.y);
-    bullets = [];
-}
-
-// --- Game Logic ---
+// --- GAME LOGIC EVENTS ---
 
 function onBotKilled() {
+    if (gameState !== 'PLAYING') return;
     gameState = 'VICTORY';
-    score += 100;
-    scoreEl.innerText = score;
-
+    bot.alive = false;
     victoryOverlay.classList.remove('hidden');
-    player.startVictoryAnimation();
+    victoryBadge.classList.remove('hidden');
 
-    setTimeout(() => {
-        victoryOverlay.classList.add('hidden');
-        level++;
-        levelEl.innerText = level;
-        resetRound();
-    }, 2000);
+    // Play Dally Music (Try Catch for missing file)
+    try {
+        dallyMusic.currentTime = 0;
+        dallyMusic.play().catch(e => console.log("Musica dally.mp3 não encontrada na pasta assets/"));
+    } catch (e) { }
+
+    // Start Victory Sequence
+    let count = 3;
+    countdownEl.innerText = count;
+    const interval = setInterval(() => {
+        count--;
+        countdownEl.innerText = count;
+        if (count <= 0) {
+            clearInterval(interval);
+            nextLevel();
+        }
+    }, 1000);
 }
 
-function resetRound() {
-    generateMap();
+function onPlayerKilled() {
+    if (gameState !== 'PLAYING') return;
+    gameState = 'GAME_OVER';
+    gameOverOverlay.classList.remove('hidden');
+    controls.unlock();
+}
+
+function nextLevel() {
+    level++;
+    levelVal.innerText = level;
+    victoryOverlay.classList.add('hidden');
+    victoryBadge.classList.add('hidden');
+    dallyMusic.pause();
+    resetGame();
+}
+
+function resetGame() {
+    generateMaze();
+    bot.reset();
+    bullets.forEach(b => scene.remove(b.mesh));
+    bullets = [];
+    camera.position.set(0, PLAYER_HEIGHT, 15);
+    camera.lookAt(0, PLAYER_HEIGHT, 0);
     gameState = 'PLAYING';
+    if (!controls.isLocked) controls.lock();
 }
 
-function update() {
+// --- INPUTS & ANIMATION ---
+
+window.addEventListener('keydown', (e) => (keys[e.code] = true));
+window.addEventListener('keyup', (e) => (keys[e.code] = false));
+
+window.addEventListener('mousedown', (e) => {
+    if (gameState !== 'PLAYING') return;
+    if (e.button === 0) { // Left Click - Shoot
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        // Position bullet at weapon tip
+        const pos = camera.position.clone().add(dir.clone().multiplyScalar(0.5));
+        createProjectile(pos, dir, 'PLAYER');
+
+        // Recoil effect
+        weaponGroup.position.z += 0.05;
+        setTimeout(() => weaponGroup.position.z -= 0.05, 50);
+    }
+    if (e.button === 2) { // Right Click - ADS
+        isADS = true;
+    }
+});
+
+window.addEventListener('mouseup', (e) => {
+    if (e.button === 2) isADS = false;
+});
+
+// Prevent context menu on right click
+window.addEventListener('contextmenu', e => e.preventDefault());
+
+function handleMovement() {
+    if (!controls.isLocked) return;
+
+    const direction = new THREE.Vector3();
+    const frontVector = new THREE.Vector3(0, 0, Number(keys['KeyS'] || false) - Number(keys['KeyW'] || false));
+    const sideVector = new THREE.Vector3(Number(keys['KeyA'] || false) - Number(keys['KeyD'] || false), 0, 0);
+
+    direction
+        .subVectors(frontVector, sideVector)
+        .normalize()
+        .multiplyScalar(PLAYER_SPEED)
+        .applyQuaternion(camera.quaternion);
+
+    camera.position.x += direction.x;
+    camera.position.z += direction.z;
+
+    // Wall collision for player
+    walls.forEach(w => {
+        const box = new THREE.Box3().setFromObject(w);
+        const playerBox = new THREE.Box3().setFromCenterAndSize(camera.position, new THREE.Vector3(0.5, 2, 0.5));
+        if (box.intersectsBox(playerBox)) {
+            camera.position.x -= direction.x;
+            camera.position.z -= direction.z;
+        }
+    });
+
+    // ADS Animation
+    const targetFOV = isADS ? 40 : 75;
+    const targetPos = isADS ? new THREE.Vector3(0, -0.12, -0.2) : new THREE.Vector3(0.3, -0.15, -0.2);
+
+    camera.fov += (targetFOV - camera.fov) * 0.1;
+    camera.updateProjectionMatrix();
+
+    weaponGroup.position.lerp(targetPos, 0.1);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+
     if (gameState === 'PLAYING') {
-        player.update();
+        handleMovement();
         bot.update();
-        bullets.forEach((b, i) => {
-            b.update();
-            if (!b.active) bullets.splice(i, 1);
-        });
+        updateProjectiles();
+    } else if (gameState === 'VICTORY') {
+        // Victory Dance: Rotate camera around player or just sway
+        weaponGroup.rotation.z = Math.sin(Date.now() * 0.01) * 0.5;
+        weaponGroup.position.y = -0.1 + Math.sin(Date.now() * 0.02) * 0.05;
     }
+
+    renderer.render(scene, camera);
 }
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Background pattern
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Grid
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= canvas.width; i += TILE_SIZE) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-    }
-    for (let i = 0; i <= canvas.height; i += TILE_SIZE) {
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
-    }
-
-    walls.forEach(w => w.draw());
-    bullets.forEach(b => b.draw());
-
-    if (bot) bot.draw();
-    if (player) player.draw();
-}
-
-function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
-}
-
-// --- Inputs ---
-
-window.addEventListener('keydown', e => keys[e.key] = true);
-window.addEventListener('keyup', e => keys[e.key] = false);
-window.addEventListener('mousemove', e => {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
-});
-window.addEventListener('mousedown', e => {
-    if (gameState === 'PLAYING' && e.button === 0) {
-        bullets.push(new Bullet(player.x, player.y, player.angle, 'PLAYER'));
-    }
-});
 
 startBtn.addEventListener('click', () => {
     startOverlay.classList.add('hidden');
-    level = 1;
-    score = 0;
-    levelEl.innerText = level;
-    scoreEl.innerText = score;
-    generateMap();
-    gameState = 'PLAYING';
+    resetGame();
 });
 
-// Start
-gameLoop();
+retryBtn.addEventListener('click', () => {
+    gameOverOverlay.classList.add('hidden');
+    level = 1;
+    levelVal.innerText = level;
+    resetGame();
+});
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Start loop
+generateMaze();
+animate();
