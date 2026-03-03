@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Box Fight Shooter | Procedural 2D Action</title>
+    <meta name="description" content="A fast-paced procedural box-fight shooter game built with HTML5 Canvas. Survive corridors and eliminate the bot.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <header id="hud" class="glass">
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="label">PONTOS:</span>
+                    <span id="score-val" class="value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">MAPA:</span>
+                    <span id="level-val" class="value">1</span>
+                </div>
+            </div>
+            <div id="game-title">BOX FIGHT</div>
+            <div id="status-display" class="hidden">VITÓRIA!</div>
+        </header>
+
+        <canvas id="game-canvas"></canvas>
+
+        <div id="controls-hint" class="glass">
+            <p><strong>WASD</strong>: Mover • <strong>MOUSE</strong>: Mirar • <strong>CLIQUE</strong>: Atirar</p>
+        </div>
+
+        <div id="start-overlay" class="overlay">
+            <div class="content glass">
+                <h1>BOX FIGHT</h1>
+                <p>Elimine o bot para progredir. O labirinto muda a cada vitória.</p>
+                <button id="start-btn" class="glow-btn">INICIAR JOGO</button>
+            </div>
+        </div>
+
+        <div id="victory-overlay" class="overlay hidden">
+            <div class="content glass">
+                <h2 class="animate-pulse">BOT ELIMINADO!</h2>
+                <div class="dance-icon">🕺</div>
+                <p>Gerando novo mapa...</p>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
