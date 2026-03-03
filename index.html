@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Box Fight 3D | Hardcore Edition</title>
+    <title>Box Fight 3D | V.2026 High Fidelity</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,9 +24,9 @@
     <div id="game-container">
         <!-- HUD Principal -->
         <header id="hud" class="glass">
-            <div id="game-title">HARDCORE ARENA</div>
+            <div id="game-title">BOX FIGHT 2026</div>
             <div class="stats">
-                <div class="stat-item">
+                <div class="stat-item health-container">
                     <span class="label">SANGUE JOGADOR</span>
                     <div class="health-bar">
                         <div id="player-health-fill" class="health-fill"></div>
@@ -35,7 +35,7 @@
                 <div class="stat-item ammo-hud">
                     <span id="ammo-count">10</span> / <span id="total-ammo">20</span>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item health-container">
                     <span class="label">SANGUE BOT</span>
                     <div class="health-bar bot-health">
                         <div id="bot-health-fill" class="health-fill"></div>
@@ -47,32 +47,31 @@
         <!-- Mira -->
         <div id="crosshair"></div>
 
-        <!-- Overlays de Estado -->
+        <!-- Overlays -->
         <div id="start-overlay" class="overlay">
             <div class="content glass">
                 <h1>BOX FIGHT 3D</h1>
-                <p>Mire na cabeça. Sobreviva aos disparos.</p>
+                <p>Mire na cabeça. Sniper AI ativada.</p>
                 <button id="start-btn" class="glow-btn">ENTRAR NA ARENA</button>
             </div>
         </div>
 
         <div id="game-over-overlay" class="overlay hidden">
-            <h1 class="blood-text">GAME OVER</h1>
-            <div class="blood-drip"></div>
+            <h1 class="blood-text blood-dripping">GAME OVER</h1>
+            <div class="blood-particles"></div>
             <button id="retry-btn" class="glow-btn">REENTRAR</button>
         </div>
 
         <div id="victory-overlay" class="overlay hidden">
             <div class="content no-bg">
-                <h2 class="victory-text animate-bounce">VITÓRIA!</h2>
-                <p>Executando Dally...</p>
-                <div id="countdown">3</div>
+                <h2 class="victory-text animate-bounce">VITÓRIA</h2>
+                <p>The Dally Dance Sequence...</p>
             </div>
         </div>
 
-        <!-- Áudio para a Vitória -->
-        <audio id="victory-music" loop>
-            <source src="assets/dally.mp3" type="audio/mpeg">
+        <!-- Áudio -->
+        <audio id="dally-audio">
+            <source src="assets/dally_trend.mp3" type="audio/mpeg">
         </audio>
     </div>
 
