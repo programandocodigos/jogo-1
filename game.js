@@ -64,11 +64,11 @@ const controls = new PointerLockControls(camera, document.body);
 const ambientLight = new THREE.AmbientLight(0x101020, 1.5);
 scene.add(ambientLight);
 
-const blueLight = new THREE.PointLight(0x00f2ff, 150, 40);
+const blueLight = new THREE.PointLight(0x00f2ff, 300, 60);
 blueLight.position.set(-15, 10, -15);
 scene.add(blueLight);
 
-const pinkLight = new THREE.PointLight(0xff00ff, 150, 40);
+const pinkLight = new THREE.PointLight(0xff00ff, 300, 60);
 pinkLight.position.set(15, 10, 15);
 scene.add(pinkLight);
 
@@ -90,8 +90,8 @@ class Player {
 
     updateHUD() {
         playerHealthFill.style.width = this.hp + '%';
-        ammoCountEl.innerText = this.ammoInMag;
-        totalAmmoEl.innerText = this.totalAmmoPool;
+        if (ammoCountEl) ammoCountEl.innerText = this.ammoInMag;
+        if (totalAmmoEl) totalAmmoEl.innerText = this.totalAmmoPool;
     }
 
     dance() {
@@ -141,14 +141,21 @@ function createMagnum357() {
 createMagnum357();
 
 // --- MAP GENERATION (Matrix Based) ---
+const floorGeo = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2);
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x111122, roughness: 0.8, metalness: 0.1 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
 function generateMaze() {
     walls.forEach(w => scene.remove(w));
     walls = [];
 
     const wallMat = new THREE.MeshStandardMaterial({
-        color: 0x0a0a1a,
+        color: 0x0a0a2a,
         emissive: 0x00f2ff,
-        emissiveIntensity: 0.05
+        emissiveIntensity: 0.1
     });
 
     const addWall = (x, z, w, d) => {
