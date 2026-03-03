@@ -9,7 +9,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 // --- COMBAT STATS (V.2026) ---
 const STATS = {
     PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG_SIZE: 10, TOTAL_RESERVE: 20 },
-    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.095, ACCURACY: 0.88, MAG_SIZE: 10, RELOAD_TIME: 2500 }
+    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.09, ACCURACY: 0.70, MAG_SIZE: 10, RELOAD_TIME: 2500 } // Accuracy reduced from 0.88 to 0.70
 };
 
 // --- SYSTEM STATE ---
@@ -110,8 +110,8 @@ function generateMap() {
 class HumanoidBot {
     constructor() {
         this.mesh = new THREE.Group();
-        const skinMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c }); // Tan skin
-        const clothesMat = new THREE.MeshStandardMaterial({ color: 0x111111 }); // Black tactical
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c });
+        const clothesMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
         // Head
         const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.35), skinMat);
@@ -125,7 +125,7 @@ class HumanoidBot {
         const armGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
         this.lArm = new THREE.Mesh(armGeo, skinMat);
         this.lArm.position.set(-0.35, 1.4, 0);
-        this.rArm = new THREE.Group(); // Weapon arm
+        this.rArm = new THREE.Group();
         const rArmMesh = new THREE.Mesh(armGeo, skinMat);
         rArmMesh.position.y = -0.3;
         this.rArm.add(rArmMesh);
@@ -165,16 +165,13 @@ class HumanoidBot {
         if (hasLoS) {
             this.mesh.lookAt(camera.position.x, 0, camera.position.z);
             this.rArm.lookAt(camera.position);
-            this.rArm.rotation.x += Math.PI / 2; // Orient gun properly
+            this.rArm.rotation.x += Math.PI / 2;
 
             if (dist > 7) this.mesh.position.addScaledVector(dir, STATS.BOT.SPEED);
             if (!botIsReloading && Date.now() - lastBotShot > 1300) this.shoot();
         } else {
-            // Patrol/Search
             this.mesh.position.x += Math.cos(Date.now() * 0.002) * 0.06;
         }
-
-        // Simple human float animation
         this.mesh.position.y = Math.sin(Date.now() * 0.005) * 0.05;
     }
 
@@ -213,7 +210,7 @@ function checkGameState() {
 function handleShoot() {
     if (isReloading || gameState !== 'PLAYING' || currentMag <= 0) return;
     currentMag--;
-    weaponProxy.position.z += 0.2; // Recoil kick
+    weaponProxy.position.z += 0.2;
 
     const ray = new THREE.Raycaster();
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -247,15 +244,15 @@ function handleReload() {
     reloadLoop();
 }
 
+let victoryAnimId = null;
 function runVictorySequence() {
     document.getElementById('victory-overlay').classList.remove('hidden');
     const audio = document.getElementById('victory-audio');
     audio.currentTime = 0;
-    audio.play().catch(e => console.log("Áudio bloqueado ou não encontrado: assets/meme67.mp3"));
+    audio.play().catch(e => console.log("Erro de áudio"));
 
     controls.unlock();
 
-    // Spawn a clone of the bot as the player in 3rd person
     const playerActor = bot.mesh.clone();
     playerActor.visible = true;
     playerActor.position.set(0, 0, 0);
@@ -268,16 +265,19 @@ function runVictorySequence() {
         camera.position.lerp(targetCamP, 0.05);
         camera.lookAt(playerActor.position.x, 2, playerActor.position.z);
 
-        // MEME 67 DANCE (Dally but with vibe)
         const t = Date.now() * 0.008;
         playerActor.position.y = Math.abs(Math.sin(t * 2)) * 0.5;
         playerActor.rotation.y += 0.04;
-        playerActor.children[2].rotation.z = Math.sin(t * 4) * 0.5; // Left arm
+        playerActor.children[2].rotation.z = Math.sin(t * 4) * 0.5;
 
         renderer.render(scene, camera);
-        requestAnimationFrame(victoryAnim);
+        victoryAnimId = requestAnimationFrame(victoryAnim);
     };
     victoryAnim();
+}
+
+function fullReset() {
+    location.reload(); // Simplest way to ensure a full clean reset of all Three.js memory and state
 }
 
 // --- INPUTS & ENGINE ---
@@ -302,7 +302,7 @@ function loop() {
     if (gameState === 'PLAYING') {
         move();
         bot.update();
-        weaponProxy.position.z += (-0.4 - weaponProxy.position.z) * 0.1; // Smooth Reset
+        weaponProxy.position.z += (-0.4 - weaponProxy.position.z) * 0.1;
         renderer.render(scene, camera);
     } else if (gameState === 'START') {
         renderer.render(scene, camera);
@@ -317,7 +317,9 @@ document.getElementById('start-btn').addEventListener('click', () => {
     loop();
 });
 
-document.getElementById('retry-btn').addEventListener('click', () => location.reload());
+document.getElementById('retry-btn').addEventListener('click', () => fullReset());
+document.getElementById('reset-btn').addEventListener('click', () => fullReset());
+
 generateMap();
 checkGameState();
 bot.reset();
