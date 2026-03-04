@@ -9,7 +9,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 // --- COMBAT STATS (Ajustado conforme pedido) ---
 const STATS = {
     PLAYER: { HP: 100, DAMAGE: 20, SPEED: 0.16, MAG_SIZE: 20, TOTAL_RESERVE: 40 },
-    BOT: { HP: 100, DAMAGE: 10, SPEED: 0.10, ACCURACY: 0.75, MAG_SIZE: 12, RELOAD_TIME: 2000, MAX_RANGE: 25 }
+    BOT: { HP: 100, DAMAGE: 10, SPEED: 0.10, ACCURACY: 0.75, MAG_SIZE: 12, RELOAD_TIME: 2000, MAX_RANGE: 40 }
 };
 
 // --- SYSTEM STATE ---
@@ -76,11 +76,15 @@ const createWeapon = () => {
 createWeapon();
 
 // --- MAP GENERATION ---
+let floor;
 function generateMap() {
+    // Limpeza total de obstáculos e colidsores
     obstacles.forEach(o => scene.remove(o));
     obstacles = [];
+    obstacleBoxes = [];
 
-    const floor = new THREE.Mesh(
+    if (floor) scene.remove(floor);
+    floor = new THREE.Mesh(
         new THREE.PlaneGeometry(120, 120),
         new THREE.MeshStandardMaterial({ color: 0x0a0a15, roughness: 0.9, metalness: 0.1 })
     );
@@ -258,9 +262,27 @@ class HumanoidBot {
             return;
         }
         botAmmo--; lastBotShot = Date.now();
-        if (Math.random() < STATS.BOT.ACCURACY) {
-            playerHp -= STATS.BOT.DAMAGE; // Bot tira 10 de dano
+
+        const hit = Math.random() < STATS.BOT.ACCURACY;
+        const dir = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
+
+        // Tracer do Bot (Cor Roxa/Violeta para diferenciar)
+        const tracerGeo = new THREE.BufferGeometry().setFromPoints([
+            this.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)),
+            hit ? camera.position.clone().add(new THREE.Vector3(0, -0.5, 0)) : this.mesh.position.clone().addScaledVector(dir, 50)
+        ]);
+        const tracerMat = new THREE.LineBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.8 });
+        const tracer = new THREE.Line(tracerGeo, tracerMat);
+        scene.add(tracer);
+        setTimeout(() => scene.remove(tracer), 60);
+
+        if (hit) {
+            playerHp -= STATS.BOT.DAMAGE;
             checkGameState();
+
+            // Efeito visual de dano no HUD (opcional mas bom)
+            document.body.style.boxShadow = "inset 0 0 50px #ff0000";
+            setTimeout(() => document.body.style.boxShadow = "none", 100);
         }
     }
 }
@@ -474,6 +496,10 @@ function nextPhase() {
     botMaxHp = 200; // Pedido: 200 de vida na f2
     generateMap();
     bot.reset();
+
+    // RESET CAMERA PARA EVITAR "FLUTUAR"
+    camera.position.set(0, 1.7, 12);
+    camera.lookAt(0, 1.7, 0);
 
     gameState = 'PLAYING';
     controls.lock();
