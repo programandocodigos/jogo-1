@@ -328,7 +328,7 @@ class HumanoidBot {
             setTimeout(() => document.body.style.boxShadow = "none", 100);
         }
     }
-}
+} // <--- FECHAMENTO DA CLASSE HUMANOIDBOT
 const bot = new HumanoidBot();
 
 // --- GAMEPLAY CORE ---
@@ -712,5 +712,23 @@ document.getElementById('buy-rifle').addEventListener('click', buyRifle);
 document.getElementById('buy-shotgun').addEventListener('click', buyShotgun);
 document.getElementById('buy-pistol').addEventListener('click', buyPistol);
 document.getElementById('buy-medkit').addEventListener('click', buyMedkit);
+document.getElementById('retry-btn').addEventListener('click', () => {
+    document.getElementById('game-over-overlay').classList.add('hidden');
+    playerHp = 100;
+    botHp = botMaxHp;
+    currentMag = 20;
+    gameState = 'PLAYING';
+    controls.lock();
+    checkGameState();
+});
+document.getElementById('reset-btn').addEventListener('click', fullReset);
 
-generateMap(); checkGameState(); bot.reset();
+console.log("Iniciando Arena...");
+try {
+    generateMap();
+    checkGameState();
+    bot.reset();
+    console.log("Jogo pronto para iniciar!");
+} catch (err) {
+    console.error("Erro na inicialização:", err);
+}
