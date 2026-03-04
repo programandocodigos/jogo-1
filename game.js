@@ -23,6 +23,7 @@ let botAmmo = STATS.BOT.MAG_SIZE;
 let botIsReloading = false;
 let lastBotShot = 0;
 let obstacles = [];
+let obstacleBoxes = []; // Caixas de colisão AABB
 const keys = {};
 
 // --- THREE.JS SCENE ---
@@ -85,6 +86,10 @@ function generateMap() {
         obj.receiveShadow = true;
         scene.add(obj);
         obstacles.push(obj);
+
+        // Criar caixa de colisão para o objeto
+        const box = new THREE.Box3().setFromObject(obj);
+        obstacleBoxes.push(box);
     };
 
     // Concrete Walls
@@ -100,9 +105,15 @@ function generateMap() {
         trunk.position.y = 2.5;
         const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 8), new THREE.MeshStandardMaterial({ color: 0x052d05 }));
         leaves.position.y = 5; tree.add(trunk, leaves);
-        tree.position.set((Math.random() - 0.5) * 70, 0, (Math.random() - 0.5) * 70);
+        const x = (Math.random() - 0.5) * 70;
+        const z = (Math.random() - 0.5) * 70;
+        tree.position.set(x, 0, z);
         scene.add(tree);
         obstacles.push(trunk);
+
+        // Caixa de colisão para a árvore (baseada no tronco)
+        const box = new THREE.Box3().setFromObject(trunk);
+        obstacleBoxes.push(box);
     }
 }
 
@@ -153,7 +164,15 @@ class HumanoidBot {
             this.mesh.lookAt(camera.position.x, 0, camera.position.z);
             this.rArm.lookAt(camera.position); this.rArm.rotation.x += Math.PI / 2;
 
-            if (dist > 5) this.mesh.position.addScaledVector(dir, STATS.BOT.SPEED);
+            if (dist > 5) {
+                const nextBotPos = this.mesh.position.clone().addScaledVector(dir, STATS.BOT.SPEED);
+                const botBox = new THREE.Box3().setFromCenterAndSize(nextBotPos, new THREE.Vector3(1, 2, 1));
+                let collide = false;
+                for (let box of obstacleBoxes) {
+                    if (botBox.intersectsBox(box)) { collide = true; break; }
+                }
+                if (!collide) this.mesh.position.copy(nextBotPos);
+            }
 
             // Lógica de Distância: Só acerta tiro entre 0 e 10 metros
             if (!botIsReloading && dist <= STATS.BOT.MAX_RANGE && Date.now() - lastBotShot > 1300) {
@@ -210,9 +229,47 @@ function handleShoot() {
     const hitsBot = ray.intersectObject(bot.mesh, true);
     const hitsObs = ray.intersectObjects(obstacles, true);
 
-    if (hitsBot.length > 0 && (hitsObs.length === 0 || hitsObs[0].distance > hitsBot[0].distance)) {
-        botHp -= STATS.PLAYER.DAMAGE; // Jogador tira 20 de dano
+    let hitPoint = null;
+    let hitSomething = false;
+
+    // Verificar se acertou obstáculo primeiro
+    if (hitsObs.length > 0) {
+        hitPoint = hitsObs[0].point;
+        hitSomething = true;
     }
+
+    if (hitsBot.length > 0) {
+        const botDist = hitsBot[0].distance;
+        const obsDist = hitsObs.length > 0 ? hitsObs[0].distance : Infinity;
+
+        if (botDist < obsDist) {
+            botHp -= STATS.PLAYER.DAMAGE;
+            hitPoint = hitsBot[0].point;
+            hitSomething = true;
+        }
+    }
+
+    // Efeito visual do tiro (Tracer)
+    const tracerGeo = new THREE.BufferGeometry().setFromPoints([
+        camera.position.clone().add(new THREE.Vector3(0.3, -0.3, -0.5).applyQuaternion(camera.quaternion)),
+        hitPoint || camera.position.clone().add(dir.multiplyScalar(50))
+    ]);
+    const tracerMat = new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8 });
+    const tracer = new THREE.Line(tracerGeo, tracerMat);
+    scene.add(tracer);
+    setTimeout(() => scene.remove(tracer), 50);
+
+    // Faísca no impacto
+    if (hitSomething && hitPoint) {
+        const spark = new THREE.Mesh(
+            new THREE.SphereGeometry(0.05),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        spark.position.copy(hitPoint);
+        scene.add(spark);
+        setTimeout(() => scene.remove(spark), 100);
+    }
+
     checkGameState();
     if (currentMag === 0) handleReload();
 }
@@ -263,16 +320,39 @@ window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener('mousedown', (e) => { if (e.button === 0) handleShoot(); });
 
+function checkPlayerCollision(position) {
+    const playerBox = new THREE.Box3().setFromCenterAndSize(
+        position,
+        new THREE.Vector3(0.8, 2.0, 0.8) // Tamanho aproximado do jogador
+    );
+
+    for (let box of obstacleBoxes) {
+        if (playerBox.intersectsBox(box)) return true;
+    }
+    return false;
+}
+
 function move() {
     const dir = new THREE.Vector3();
     const f = (keys['KeyS'] ? 1 : 0) - (keys['KeyW'] ? 1 : 0);
     const s = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
-    dir.set(s, 0, f).normalize().multiplyScalar(STATS.PLAYER.SPEED).applyQuaternion(camera.quaternion);
-    dir.y = 0;
-    const np = camera.position.clone().add(dir);
-    let collide = false;
-    obstacles.forEach(o => { if (np.distanceTo(o.position) < 1.8) collide = true; });
-    if (!collide) camera.position.add(dir);
+
+    // Calculamos o movimento desejado
+    const moveVector = new THREE.Vector3(s, 0, f).normalize().multiplyScalar(STATS.PLAYER.SPEED).applyQuaternion(camera.quaternion);
+    moveVector.y = 0;
+
+    // Tentamos mover no eixo X e Z separadamente para permitir deslizar
+    const nextPosX = camera.position.clone();
+    nextPosX.x += moveVector.x;
+    if (!checkPlayerCollision(nextPosX)) {
+        camera.position.x = nextPosX.x;
+    }
+
+    const nextPosZ = camera.position.clone();
+    nextPosZ.z += moveVector.z;
+    if (!checkPlayerCollision(nextPosZ)) {
+        camera.position.z = nextPosZ.z;
+    }
 }
 
 function loop() {
