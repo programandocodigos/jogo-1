@@ -231,9 +231,15 @@ class HumanoidBot {
             STATS.BOT.RELOAD_TIME = 1200; // Recarga rápida
         } else {
             clothesMat.color.set(0x111111);
-            this.mesh.scale.set(1, 1, 1);
             STATS.BOT.ACCURACY = 0.75;
             STATS.BOT.RELOAD_TIME = 2000;
+        }
+
+        // --- APARÊNCIA DE BOSS (FASE 3) ---
+        if (this.isBoss) {
+            this.mesh.scale.set(5, 5, 5);
+            this.mesh.children[0].material.color.set(0x000000); // Cabeça preta
+            this.hp = 1000;
         }
     }
 
@@ -300,10 +306,16 @@ class HumanoidBot {
             const sideMovement = new THREE.Vector3(-dir.z, 0, dir.x);
             this.moveBot(sideMovement, STATS.BOT.SPEED * 0.7 * this.strafeDir);
 
-            // Reduzir intervalo de tiro para o bot ser mais agressivo
-            const botFireRate = currentPhase === 2 ? 800 : 1200;
+            const botFireRate = (currentPhase >= 2) ? 800 : 1200;
             if (!botIsReloading && dist <= STATS.BOT.MAX_RANGE && Date.now() - lastBotShot > botFireRate) {
                 this.shoot();
+            }
+
+            // --- LANÇAR GRANADA (NOVO!) ---
+            if (!this.lastGrenade) this.lastGrenade = 0;
+            if (dist > 12 && hasLoS && Date.now() - this.lastGrenade > 7000) {
+                this.throwGrenade(camera.position);
+                this.lastGrenade = Date.now();
             }
         } else {
             // IA DE FLANQUEIO
@@ -324,6 +336,36 @@ class HumanoidBot {
         if (!collide) {
             this.mesh.position.copy(nextBotPos);
         }
+    }
+
+    throwGrenade(targetPos) {
+        console.log("BOT LANÇOU GRANADA!");
+        const gear = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+        gear.position.copy(this.mesh.position).add(new THREE.Vector3(0, 2, 0));
+        scene.add(gear);
+
+        const dir = new THREE.Vector3().subVectors(targetPos, gear.position).normalize();
+        let time = 0;
+        const gLoop = () => {
+            time += 0.05;
+            gear.position.addScaledVector(dir, 0.4);
+            gear.position.y += Math.sin(time) * 0.1;
+            if (time < 3) requestAnimationFrame(gLoop);
+            else {
+                // Explosão
+                const exp = new THREE.Mesh(new THREE.SphereGeometry(3), new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.5 }));
+                exp.position.copy(gear.position);
+                scene.add(exp);
+                if (camera.position.distanceTo(exp.position) < 4) {
+                    playerHp -= 30; checkGameState();
+                    document.body.style.filter = "blur(5px)";
+                    setTimeout(() => document.body.style.filter = "none", 500);
+                }
+                scene.remove(gear);
+                setTimeout(() => scene.remove(exp), 300);
+            }
+        };
+        gLoop();
     }
 
     shoot() {
@@ -423,6 +465,7 @@ function handleShoot() {
 
         let targetBot = null;
         let bestBotDist = Infinity;
+        let hitPoint = null; // LOCAL SCOPE FIX
 
         bots.forEach(b => {
             const hits = ray.intersectObject(b.mesh, true);
@@ -470,6 +513,16 @@ function handleShoot() {
             setTimeout(() => scene.remove(spark), 100);
         }
     }
+
+    // --- MUZZLE FLASH E RECUO (NOVO!) ---
+    const flash = new THREE.PointLight(0xffff00, 2, 5);
+    flash.position.set(0.3, -0.2, -0.8).applyQuaternion(camera.quaternion).add(camera.position);
+    scene.add(flash);
+    setTimeout(() => scene.remove(flash), 30);
+
+    // Tremer a tela (Recuo)
+    camera.position.y += 0.05;
+    camera.rotation.x += 0.02;
 
     checkGameState();
     if (hitSomething) showHitMarker();
@@ -559,7 +612,7 @@ function autoFire() {
 }
 
 function nextPhase() {
-    currentPhase = 2;
+    currentPhase++;
     document.getElementById('victory-overlay').classList.add('hidden');
 
     // Limpar o ator da vitória da cena para evitar "arma flutuando"
@@ -575,14 +628,25 @@ function nextPhase() {
     currentMag = magSize;
     reserveAmmo = reserveSize;
 
-    // Reset Map and Bot for Phase 2
-    botMaxHp = 200;
+    // Reset Map
     generateMap();
-
-    // Múltiplos Bots na Fase 2
     bots.forEach(b => scene.remove(b.mesh));
     bots = [];
-    bots.push(new HumanoidBot(), new HumanoidBot());
+
+    if (currentPhase === 2) {
+        botMaxHp = 200;
+        bots.push(new HumanoidBot(), new HumanoidBot());
+    } else if (currentPhase >= 3) {
+        // BOSS FINAL (GIGANTE)
+        botMaxHp = 1000;
+        const boss = new HumanoidBot();
+        boss.mesh.scale.set(5, 5, 5);
+        boss.hp = 1000;
+        boss.isBoss = true;
+        bots.push(boss);
+        alert("FASE 3: O BOSS GIGANTE APARECEU!");
+    }
+
     bots.forEach(b => b.reset());
 
     // RESET CAMERA PARA EVITAR "FLUTUAR"
@@ -750,6 +814,12 @@ function loop() {
         } else {
             ambient.intensity = 0.6;
             ambient.color.setHex(0xffffff);
+        }
+
+        // --- MÚSICA DE COMBATE (placeholder / visual) ---
+        if (bots.some(b => b.hp < (botMaxHp * 0.3))) {
+            // Intensificar efeitos visuais se o bot principal estiver morrendo
+            sun.intensity = 1.5 + Math.sin(Date.now() * 0.01) * 0.5;
         }
 
         weaponProxy.position.z += (-0.4 - weaponProxy.position.z) * 0.1;
