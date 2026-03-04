@@ -33,12 +33,27 @@ let lastPlayerDamageTime = 0; // Para regeneração de vida
 let obstacles = [];
 let obstacleBoxes = []; // Caixas de colisão AABB
 let playerActor = null; // Para a cena de vitória
+let bots = []; // Novo sistema de múltiplos bots
+let footstepCooldown = 0;
 const keys = {};
 
 // --- THREE.JS SCENE ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x020208);
-scene.fog = new THREE.Fog(0x020208, 0, 50);
+scene.background = new THREE.Color(0x020205);
+scene.fog = new THREE.FogExp2(0x020205, 0.015);
+
+// --- ESTRELAS (CÉU DINÂMICO) ---
+function createStarfield() {
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 2000;
+    const pos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i++) pos[i] = (Math.random() - 0.5) * 400;
+    starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.8 });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+}
+createStarfield();
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -160,11 +175,22 @@ function generateMap() {
         );
         addObj(container, (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 90);
     }
-} // <--- FECHAMENTO CORRETO DO generateMap
+
+    // --- GRAMINHA 3D ---
+    for (let i = 0; i < 100; i++) {
+        const grass = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, Math.random() * 0.5, 0.1),
+            new THREE.MeshStandardMaterial({ color: 0x114411 })
+        );
+        grass.position.set((Math.random() - 0.5) * 100, 0, (Math.random() - 0.5) * 100);
+        scene.add(grass);
+    }
+}
 
 // --- HUMANOID BOT SNIPER AI ---
 class HumanoidBot {
     constructor() {
+        this.hp = botMaxHp;
         this.mesh = new THREE.Group();
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c });
         const clothesMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
@@ -212,7 +238,10 @@ class HumanoidBot {
     }
 
     update() {
-        if (gameState !== 'PLAYING' || botHp <= 0) return;
+        if (gameState !== 'PLAYING' || this.hp <= 0) {
+            this.mesh.visible = false;
+            return;
+        }
         const dist = this.mesh.position.distanceTo(camera.position);
         const dir = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
 
@@ -348,10 +377,17 @@ function checkGameState() {
         controls.unlock();
     }
     if (botHp <= 0 && gameState === 'PLAYING') {
-        gameState = 'VICTORY';
-        coins += 50; // Ganha 50 moedas
-        document.getElementById('coin-count').innerText = coins;
-        runVictorySequence();
+        // Encontrar o próximo bot ou vencer
+        const aliveBots = bots.filter(b => b.mesh.visible);
+        if (aliveBots.length > 0) {
+            // botHp reseta para o próximo bot (simulação)
+            botHp = botMaxHp;
+        } else {
+            gameState = 'VICTORY';
+            coins += 50;
+            document.getElementById('coin-count').innerText = coins;
+            runVictorySequence();
+        }
     }
 }
 
@@ -384,30 +420,34 @@ function handleShoot() {
         }
 
         ray.set(camera.position, dir);
-        const hitsBot = ray.intersectObject(bot.mesh, true);
+
+        let targetBot = null;
+        let bestBotDist = Infinity;
+
+        bots.forEach(b => {
+            const hits = ray.intersectObject(b.mesh, true);
+            if (hits.length > 0 && hits[0].distance < bestBotDist) {
+                bestBotDist = hits[0].distance;
+                targetBot = b;
+                hitPoint = hits[0].point;
+            }
+        });
+
         const hitsObs = ray.intersectObjects(obstacles, true);
+        const obsDist = hitsObs.length > 0 ? hitsObs[0].distance : Infinity;
 
-        let hitPoint = null;
-        let hitSomethingInPellet = false;
-
-        let damage = STATS.PLAYER.DAMAGE; // Default Pistol (20)
+        let damage = STATS.PLAYER.DAMAGE;
         if (currentWeapon === 'RIFLE') damage = 15;
         else if (currentWeapon === 'SHOTGUN') damage = 8;
 
-        if (hitsObs.length > 0) {
+        if (targetBot && bestBotDist < obsDist) {
+            targetBot.hp -= damage;
+            botHp = targetBot.hp; // Atualiza a barra de vida global para o bot focado
+            hitSomethingInPellet = true;
+            hitSomething = true;
+        } else if (hitsObs.length > 0) {
             hitPoint = hitsObs[0].point;
             hitSomethingInPellet = true;
-        }
-
-        if (hitsBot.length > 0) {
-            const botDist = hitsBot[0].distance;
-            const obsDist = hitsObs.length > 0 ? hitsObs[0].distance : Infinity;
-            if (botDist < obsDist) {
-                botHp -= damage;
-                hitPoint = hitsBot[0].point;
-                hitSomethingInPellet = true;
-                hitSomething = true;
-            }
         }
 
         // Tracer for each pellet
@@ -460,8 +500,8 @@ function handleReload() {
                 const toReload = Math.min(needed, reserveAmmo);
                 reserveAmmo -= toReload;
                 currentMag += toReload;
-                weaponProxy.position.y = initialY;
                 isReloading = false; checkGameState();
+                console.log("ARMA RECARREGADA!"); // Placeholder para som de recarga metálica
             }, 1000);
         }
     };
@@ -536,9 +576,14 @@ function nextPhase() {
     reserveAmmo = reserveSize;
 
     // Reset Map and Bot for Phase 2
-    botMaxHp = 200; // Pedido: 200 de vida na f2
+    botMaxHp = 200;
     generateMap();
-    bot.reset();
+
+    // Múltiplos Bots na Fase 2
+    bots.forEach(b => scene.remove(b.mesh));
+    bots = [];
+    bots.push(new HumanoidBot(), new HumanoidBot());
+    bots.forEach(b => b.reset());
 
     // RESET CAMERA PARA EVITAR "FLUTUAR"
     camera.position.set(0, 1.7, 12);
@@ -661,6 +706,13 @@ function move() {
     if (moveVector.length() > 0) {
         moveVector.normalize().multiplyScalar(STATS.PLAYER.SPEED);
 
+        // --- SOM DE PASSOS (SIMULADO POR LOG E VISUAL) ---
+        if (Date.now() > footstepCooldown) {
+            console.log("Passo na graminha...");
+            camera.position.y += Math.sin(Date.now() * 0.01) * 0.05; // Cabeça balançando levemente
+            footstepCooldown = Date.now() + 350;
+        }
+
         // Tentativa de movimento no eixo X
         const nextPosX = camera.position.clone();
         nextPosX.x += moveVector.x;
@@ -681,13 +733,23 @@ function loop() {
     requestAnimationFrame(loop);
     if (gameState === 'PLAYING') {
         move();
-        bot.update();
+        bots.forEach(b => b.update()); // Atualiza todos os bots
         autoFire();
 
         // --- SISTEMA DE REGENERAÇÃO ---
         if (playerHp < PLAYER_MAX_HP && Date.now() - lastPlayerDamageTime > 5000) {
             playerHp = Math.min(PLAYER_MAX_HP, playerHp + 0.08); // Recupera vida suavemente
             checkGameState();
+        }
+
+        // --- LUZ DE COMBATE (LOW HP) ---
+        if (playerHp < 30) {
+            const intensity = Math.abs(Math.sin(Date.now() * 0.005)) * 0.5;
+            ambient.intensity = 0.6 + intensity;
+            ambient.color.setHex(0xff0000);
+        } else {
+            ambient.intensity = 0.6;
+            ambient.color.setHex(0xffffff);
         }
 
         weaponProxy.position.z += (-0.4 - weaponProxy.position.z) * 0.1;
@@ -727,7 +789,11 @@ console.log("Iniciando Arena...");
 try {
     generateMap();
     checkGameState();
-    bot.reset();
+
+    // Inicializar o primeiro bot
+    const bot1 = new HumanoidBot();
+    bots.push(bot1);
+
     console.log("Jogo pronto para iniciar!");
 } catch (err) {
     console.error("Erro na inicialização:", err);
