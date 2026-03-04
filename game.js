@@ -9,7 +9,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 // --- COMBAT STATS (Ajustado conforme pedido) ---
 const STATS = {
     PLAYER: { HP: 100, DAMAGE: 20, SPEED: 0.16, MAG_SIZE: 10, TOTAL_RESERVE: 20 },
-    BOT: { HP: 100, DAMAGE: 10, SPEED: 0.09, ACCURACY: 0.70, MAG_SIZE: 10, RELOAD_TIME: 2500, MAX_RANGE: 10 }
+    BOT: { HP: 100, DAMAGE: 10, SPEED: 0.10, ACCURACY: 0.75, MAG_SIZE: 12, RELOAD_TIME: 2000, MAX_RANGE: 25 }
 };
 
 // --- SYSTEM STATE ---
@@ -162,26 +162,42 @@ class HumanoidBot {
 
         if (hasLoS) {
             this.mesh.lookAt(camera.position.x, 0, camera.position.z);
-            this.rArm.lookAt(camera.position); this.rArm.rotation.x += Math.PI / 2;
+            this.rArm.lookAt(camera.position);
+            this.rArm.rotation.x += Math.PI / 2;
 
-            if (dist > 5) {
-                const nextBotPos = this.mesh.position.clone().addScaledVector(dir, STATS.BOT.SPEED);
-                const botBox = new THREE.Box3().setFromCenterAndSize(nextBotPos, new THREE.Vector3(1, 2, 1));
-                let collide = false;
-                for (let box of obstacleBoxes) {
-                    if (botBox.intersectsBox(box)) { collide = true; break; }
-                }
-                if (!collide) this.mesh.position.copy(nextBotPos);
+            // NOVA INTELIGÊNCIA: Se o jogador estiver muito perto ( < 4m), o bot recua
+            // Se estiver longe ( > 7m), o bot avança
+            if (dist > 7) {
+                // Avançar
+                this.moveBot(dir, STATS.BOT.SPEED);
+            } else if (dist < 4) {
+                // Recuar (direção oposta ao jogador)
+                const retreatDir = dir.clone().negate();
+                this.moveBot(retreatDir, STATS.BOT.SPEED * 0.8);
             }
 
-            // Lógica de Distância: Só acerta tiro entre 0 e 10 metros
-            if (!botIsReloading && dist <= STATS.BOT.MAX_RANGE && Date.now() - lastBotShot > 1300) {
+            // Atirar se estiver no alcance aumentado (25m)
+            if (!botIsReloading && dist <= STATS.BOT.MAX_RANGE && Date.now() - lastBotShot > 1200) {
                 this.shoot();
             }
         } else {
-            this.mesh.position.x += Math.cos(Date.now() * 0.002) * 0.07;
+            // Se perdeu a visão, tenta se mover para o lado para reencontrar o jogador (flanquear)
+            const sideDir = new THREE.Vector3(-dir.z, 0, dir.x);
+            this.moveBot(sideDir, STATS.BOT.SPEED * 0.5);
         }
         this.mesh.position.y = Math.sin(Date.now() * 0.005) * 0.05;
+    }
+
+    moveBot(direction, speed) {
+        const nextBotPos = this.mesh.position.clone().addScaledVector(direction, speed);
+        const botBox = new THREE.Box3().setFromCenterAndSize(nextBotPos, new THREE.Vector3(1, 2, 1));
+        let collide = false;
+        for (let box of obstacleBoxes) {
+            if (botBox.intersectsBox(box)) { collide = true; break; }
+        }
+        if (!collide) {
+            this.mesh.position.copy(nextBotPos);
+        }
     }
 
     shoot() {
@@ -333,25 +349,38 @@ function checkPlayerCollision(position) {
 }
 
 function move() {
-    const dir = new THREE.Vector3();
-    const f = (keys['KeyS'] ? 1 : 0) - (keys['KeyW'] ? 1 : 0);
-    const s = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
+    if (!controls.isLocked) return;
 
-    // Calculamos o movimento desejado
-    const moveVector = new THREE.Vector3(s, 0, f).normalize().multiplyScalar(STATS.PLAYER.SPEED).applyQuaternion(camera.quaternion);
-    moveVector.y = 0;
+    const moveVector = new THREE.Vector3();
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
 
-    // Tentamos mover no eixo X e Z separadamente para permitir deslizar
-    const nextPosX = camera.position.clone();
-    nextPosX.x += moveVector.x;
-    if (!checkPlayerCollision(nextPosX)) {
-        camera.position.x = nextPosX.x;
-    }
+    forward.y = 0;
+    right.y = 0;
+    forward.normalize();
+    right.normalize();
 
-    const nextPosZ = camera.position.clone();
-    nextPosZ.z += moveVector.z;
-    if (!checkPlayerCollision(nextPosZ)) {
-        camera.position.z = nextPosZ.z;
+    if (keys['KeyW']) moveVector.add(forward);
+    if (keys['KeyS']) moveVector.sub(forward);
+    if (keys['KeyA']) moveVector.sub(right);
+    if (keys['KeyD']) moveVector.add(right);
+
+    if (moveVector.length() > 0) {
+        moveVector.normalize().multiplyScalar(STATS.PLAYER.SPEED);
+
+        // Tentativa de movimento no eixo X
+        const nextPosX = camera.position.clone();
+        nextPosX.x += moveVector.x;
+        if (!checkPlayerCollision(nextPosX)) {
+            camera.position.x = nextPosX.x;
+        }
+
+        // Tentativa de movimento no eixo Z
+        const nextPosZ = camera.position.clone();
+        nextPosZ.z += moveVector.z;
+        if (!checkPlayerCollision(nextPosZ)) {
+            camera.position.z = nextPosZ.z;
+        }
     }
 }
 
