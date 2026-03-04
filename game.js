@@ -155,43 +155,66 @@ class HumanoidBot {
         const dist = this.mesh.position.distanceTo(camera.position);
         const dir = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
 
-        // Raycast Visibility Check (Não atira atrás de obstáculos)
+        // Raycast Visibility Check
         this.ray.set(this.mesh.position.clone().add(new THREE.Vector3(0, 1.6, 0)), dir);
         const hits = this.ray.intersectObjects(obstacles, true);
         const hasLoS = hits.length === 0 || hits[0].distance > dist;
 
-        if (hasLoS) {
+        // --- SISTEMA DE COBERTURA (BOT COM POUCA VIDA) ---
+        if (botHp < 30) {
+            // Encontrar o obstáculo mais próximo para se esconder
+            let nearestObs = null;
+            let minDist = Infinity;
+            obstacles.forEach(obs => {
+                const d = this.mesh.position.distanceTo(obs.position);
+                if (d < minDist) { minDist = d; nearestObs = obs; }
+            });
+
+            if (nearestObs) {
+                // Direção do obstáculo em relação ao jogador (vetor de fuga)
+                const hideDir = new THREE.Vector3().subVectors(nearestObs.position, camera.position).normalize();
+                // O ponto ideal é um pouco "atrás" do obstáculo
+                const targetHidePos = nearestObs.position.clone().addScaledVector(hideDir, 1.5);
+                const toHideDir = new THREE.Vector3().subVectors(targetHidePos, this.mesh.position).normalize();
+
+                if (this.mesh.position.distanceTo(targetHidePos) > 0.5) {
+                    this.moveBot(toHideDir, STATS.BOT.SPEED * 1.2); // Corre mais quando está com medo
+                    this.mesh.lookAt(targetHidePos.x, 0, targetHidePos.z);
+                }
+            }
+
+            // Regeneração lenta em cobertura
+            if (!hasLoS) {
+                botHp = Math.min(100, botHp + 0.05); // Recupera vida fugindo da mira
+                checkGameState();
+            }
+
+            // Se recuperou vida suficiente (ex: > 60), volta a lutar
+            if (botHp > 60) { /* volta ao normal */ }
+        } else if (hasLoS) {
+            // IA DE ATAQUE (Já existente com Strafe)
             this.mesh.lookAt(camera.position.x, 0, camera.position.z);
             this.rArm.lookAt(camera.position);
             this.rArm.rotation.x += Math.PI / 2;
 
-            // --- IA DE MOVIMENTO AVANÇADA ---
-            // 1. Distância (Avançar/Recuar)
-            if (dist > 7) {
-                this.moveBot(dir, STATS.BOT.SPEED);
-            } else if (dist < 4) {
-                const retreatDir = dir.clone().negate();
-                this.moveBot(retreatDir, STATS.BOT.SPEED * 0.8);
-            }
+            if (dist > 7) this.moveBot(dir, STATS.BOT.SPEED);
+            else if (dist < 4) this.moveBot(dir.clone().negate(), STATS.BOT.SPEED * 0.8);
 
-            // 2. Strafe Aleatório (Movimento Lateral para desviar de tiros)
-            // Se o tempo de troca de direção acabou, escolhe uma nova direção (esquerda ou direita)
             if (!this.strafeTime || Date.now() > this.strafeTime) {
                 this.strafeDir = Math.random() < 0.5 ? 1 : -1;
                 this.strafeTime = Date.now() + 500 + Math.random() * 1000;
             }
-            // Vetor lateral perpendicular à direção do jogador
             const sideMovement = new THREE.Vector3(-dir.z, 0, dir.x);
             this.moveBot(sideMovement, STATS.BOT.SPEED * 0.7 * this.strafeDir);
 
-            // 3. Atirar no alcance de 25m
             if (!botIsReloading && dist <= STATS.BOT.MAX_RANGE && Date.now() - lastBotShot > 1200) {
                 this.shoot();
             }
         } else {
-            // Se perdeu a visão, tenta se mover para o lado para reencontrar o jogador (flanquear)
+            // IA DE FLANQUEIO
             const sideDir = new THREE.Vector3(-dir.z, 0, dir.x);
             this.moveBot(sideDir, STATS.BOT.SPEED * 0.5);
+            this.mesh.lookAt(camera.position.x, 0, camera.position.z);
         }
         this.mesh.position.y = Math.sin(Date.now() * 0.005) * 0.05;
     }
