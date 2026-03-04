@@ -8,7 +8,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 // --- COMBAT STATS (Ajustado conforme pedido) ---
 const STATS = {
-    PLAYER: { HP: 100, DAMAGE: 20, SPEED: 0.16, MAG_SIZE: 10, TOTAL_RESERVE: 20 },
+    PLAYER: { HP: 100, DAMAGE: 20, SPEED: 0.16, MAG_SIZE: 15, TOTAL_RESERVE: 45 },
     BOT: { HP: 100, DAMAGE: 10, SPEED: 0.10, ACCURACY: 0.75, MAG_SIZE: 12, RELOAD_TIME: 2000, MAX_RANGE: 25 }
 };
 
@@ -330,7 +330,10 @@ function handleReload() {
         if (weaponProxy.position.y > -1.5) requestAnimationFrame(reloadLoop);
         else {
             setTimeout(() => {
-                reserveAmmo -= 10; currentMag = 10;
+                const needed = STATS.PLAYER.MAG_SIZE - currentMag;
+                const toReload = Math.min(needed, reserveAmmo);
+                reserveAmmo -= toReload;
+                currentMag += toReload;
                 weaponProxy.position.y = initialY;
                 isReloading = false; checkGameState();
             }, 1000);
