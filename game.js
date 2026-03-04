@@ -14,11 +14,16 @@ const STATS = {
 
 // --- SYSTEM STATE ---
 let gameState = 'START';
+let currentPhase = 1;
+let coins = 0;
+let hasRifle = false;
 let playerHp = 100;
 let botHp = 100;
 let currentMag = 20;
 let reserveAmmo = 40;
 let isReloading = false;
+let isMouseDown = false;
+let lastShotTime = 0;
 let botAmmo = STATS.BOT.MAG_SIZE;
 let botIsReloading = false;
 let lastBotShot = 0;
@@ -252,6 +257,7 @@ function checkGameState() {
     document.getElementById('bot-health-fill').style.width = botHp + '%';
     document.getElementById('ammo-count').innerText = currentMag;
     document.getElementById('total-ammo').innerText = reserveAmmo;
+    document.getElementById('coin-count').innerText = coins;
 
     if (playerHp <= 0 && gameState === 'PLAYING') {
         gameState = 'GAMEOVER';
@@ -260,12 +266,20 @@ function checkGameState() {
     }
     if (botHp <= 0 && gameState === 'PLAYING') {
         gameState = 'VICTORY';
+        coins += 50; // Ganha 50 moedas
+        document.getElementById('coin-count').innerText = coins;
         runVictorySequence();
     }
 }
 
 function handleShoot() {
     if (isReloading || gameState !== 'PLAYING' || currentMag <= 0) return;
+
+    // Controle de cadência (Rifle atira a cada 100ms, Pistola a cada 400ms)
+    const fireRate = hasRifle ? 100 : 400;
+    if (Date.now() - lastShotTime < fireRate) return;
+
+    lastShotTime = Date.now();
     currentMag--;
     weaponProxy.position.z += 0.2;
 
@@ -279,7 +293,9 @@ function handleShoot() {
     let hitPoint = null;
     let hitSomething = false;
 
-    // Verificar se acertou obstáculo primeiro
+    // Calcular dano: Rifle 15, Pistola 20
+    const damage = hasRifle ? 15 : STATS.PLAYER.DAMAGE;
+
     if (hitsObs.length > 0) {
         hitPoint = hitsObs[0].point;
         hitSomething = true;
@@ -290,28 +306,24 @@ function handleShoot() {
         const obsDist = hitsObs.length > 0 ? hitsObs[0].distance : Infinity;
 
         if (botDist < obsDist) {
-            botHp -= STATS.PLAYER.DAMAGE;
+            botHp -= damage;
             hitPoint = hitsBot[0].point;
             hitSomething = true;
         }
     }
 
-    // Efeito visual do tiro (Tracer)
+    // Tracer visual
     const tracerGeo = new THREE.BufferGeometry().setFromPoints([
         camera.position.clone().add(new THREE.Vector3(0.3, -0.3, -0.5).applyQuaternion(camera.quaternion)),
         hitPoint || camera.position.clone().add(dir.multiplyScalar(50))
     ]);
-    const tracerMat = new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8 });
+    const tracerMat = new THREE.LineBasicMaterial({ color: hasRifle ? 0xff4400 : 0xffff00, transparent: true, opacity: 0.8 });
     const tracer = new THREE.Line(tracerGeo, tracerMat);
     scene.add(tracer);
     setTimeout(() => scene.remove(tracer), 50);
 
-    // Faísca no impacto
     if (hitSomething && hitPoint) {
-        const spark = new THREE.Mesh(
-            new THREE.SphereGeometry(0.05),
-            new THREE.MeshBasicMaterial({ color: 0xffffff })
-        );
+        const spark = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0xffffff }));
         spark.position.copy(hitPoint);
         scene.add(spark);
         setTimeout(() => scene.remove(spark), 100);
@@ -368,7 +380,63 @@ function fullReset() { location.reload(); }
 
 window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
-window.addEventListener('mousedown', (e) => { if (e.button === 0) handleShoot(); });
+window.addEventListener('mousedown', (e) => {
+    if (e.button === 0) {
+        isMouseDown = true;
+        if (!hasRifle) handleShoot(); // Pistola é um clique por vez
+    }
+});
+window.addEventListener('mouseup', () => isMouseDown = false);
+
+// Ajuste no loop para tiro automático
+function autoFire() {
+    if (isMouseDown && hasRifle && gameState === 'PLAYING') {
+        handleShoot();
+    }
+}
+
+function nextPhase() {
+    currentPhase = 2;
+    document.getElementById('victory-overlay').classList.add('hidden');
+
+    // Reset Player
+    playerHp = 100;
+    currentMag = hasRifle ? 30 : 20;
+    reserveAmmo = hasRifle ? 120 : 40;
+
+    // Reset Map and Bot for Phase 2
+    generateMap();
+    bot.reset();
+    botHp = 250; // Bot muito mais forte na Fase 2
+
+    gameState = 'PLAYING';
+    controls.lock();
+}
+
+function openShop() {
+    document.getElementById('shop-overlay').classList.remove('hidden');
+    controls.unlock();
+}
+
+function buyRifle() {
+    if (coins >= 50 && !hasRifle) {
+        coins -= 50;
+        hasRifle = true;
+        document.getElementById('coin-count').innerText = coins;
+        document.getElementById('buy-rifle').innerText = "COMPRADO";
+        document.getElementById('buy-rifle').disabled = true;
+
+        // Mudar visual da arma (rifle mais longo)
+        weaponProxy.children[0].scale.z = 2;
+        weaponProxy.children[0].position.z = -0.6;
+
+        alert("RIFLE ADQUIRIDO! Atire segurando o mouse.");
+    } else if (hasRifle) {
+        alert("Já possui o Rifle!");
+    } else {
+        alert("Moedas insuficientes!");
+    }
+}
 
 function checkPlayerCollision(position) {
     const playerBox = new THREE.Box3().setFromCenterAndSize(
@@ -421,7 +489,9 @@ function move() {
 function loop() {
     requestAnimationFrame(loop);
     if (gameState === 'PLAYING') {
-        move(); bot.update();
+        move();
+        bot.update();
+        autoFire();
         weaponProxy.position.z += (-0.4 - weaponProxy.position.z) * 0.1;
         renderer.render(scene, camera);
     } else if (gameState === 'START') {
@@ -435,6 +505,11 @@ document.getElementById('start-btn').addEventListener('click', () => {
     gameState = 'PLAYING'; controls.lock(); loop();
 });
 
-document.getElementById('retry-btn').addEventListener('click', () => fullReset());
-document.getElementById('reset-btn').addEventListener('click', () => fullReset());
+document.getElementById('next-phase-btn').addEventListener('click', nextPhase);
+document.getElementById('shop-btn-vic').addEventListener('click', openShop);
+document.getElementById('close-shop').addEventListener('click', () => {
+    document.getElementById('shop-overlay').classList.add('hidden');
+});
+document.getElementById('buy-rifle').addEventListener('click', buyRifle);
+
 generateMap(); checkGameState(); bot.reset();

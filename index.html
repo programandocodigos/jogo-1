@@ -35,6 +35,10 @@
                 <div class="stat-item ammo-hud">
                     <span id="ammo-count">10</span> / <span id="total-ammo">20</span>
                 </div>
+                <div class="stat-item coin-container">
+                    <span class="label">MOEDAS</span>
+                    <div id="coin-count" class="coin-hud">0</div>
+                </div>
                 <div class="stat-item health-container">
                     <span class="label">SANGUE BOT</span>
                     <div class="health-bar bot-health">
@@ -66,8 +70,28 @@
         <div id="victory-overlay" class="overlay hidden">
             <div class="content no-bg">
                 <h2 class="victory-text animate-bounce">VITÓRIA!</h2>
-                <p>Meme 67 Ativado...</p>
-                <button id="reset-btn" class="glow-btn" style="margin-top: 50px;">RECOMESSAR DO ZERO</button>
+                <p>Meme 67 Ativado... Você ganhou 50 moedas!</p>
+                <div class="victory-btns">
+                    <button id="next-phase-btn" class="glow-btn">PRÓXIMA FASE</button>
+                    <button id="shop-btn-vic" class="glow-btn" style="background: #22c55e;">LOJA</button>
+                    <button id="reset-btn" class="glow-btn" style="display: block; margin: 20px auto;">RECOMESSAR DO
+                        ZERO</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loja Overlay -->
+        <div id="shop-overlay" class="overlay hidden">
+            <div class="content glass shop-content">
+                <h1 style="color: #fbbf24;">LOJA DE ARMAS</h1>
+                <div class="shop-items">
+                    <div class="shop-item">
+                        <h3>RIFLE DE ASSALTO</h3>
+                        <p>Atira muito mais rápido | Dano: 15</p>
+                        <button id="buy-rifle" class="glow-btn">COMPRAR (50 MOEDAS)</button>
+                    </div>
+                </div>
+                <button id="close-shop" class="glow-btn" style="background: #ef4444;">FECHAR</button>
             </div>
         </div>
 
