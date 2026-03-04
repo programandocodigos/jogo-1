@@ -8,7 +8,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 // --- COMBAT STATS (Ajustado conforme pedido) ---
 const STATS = {
-    PLAYER: { HP: 100, DAMAGE: 20, SPEED: 0.16, MAG_SIZE: 15, TOTAL_RESERVE: 45 },
+    PLAYER: { HP: 100, DAMAGE: 20, SPEED: 0.16, MAG_SIZE: 20, TOTAL_RESERVE: 40 },
     BOT: { HP: 100, DAMAGE: 10, SPEED: 0.10, ACCURACY: 0.75, MAG_SIZE: 12, RELOAD_TIME: 2000, MAX_RANGE: 25 }
 };
 
@@ -16,8 +16,8 @@ const STATS = {
 let gameState = 'START';
 let playerHp = 100;
 let botHp = 100;
-let currentMag = STATS.PLAYER.MAG_SIZE;
-let reserveAmmo = STATS.PLAYER.TOTAL_RESERVE;
+let currentMag = 20;
+let reserveAmmo = 40;
 let isReloading = false;
 let botAmmo = STATS.BOT.MAG_SIZE;
 let botIsReloading = false;
