@@ -17,8 +17,11 @@ let gameState = 'START';
 let currentPhase = 1;
 let coins = 0;
 let hasRifle = false;
+let hasShotgun = false;
 let playerHp = 100;
+const PLAYER_MAX_HP = 100;
 let botHp = 100;
+let botMaxHp = 100;
 let currentMag = 20;
 let reserveAmmo = 40;
 let isReloading = false;
@@ -190,12 +193,12 @@ class HumanoidBot {
 
             // Regeneração lenta em cobertura
             if (!hasLoS) {
-                botHp = Math.min(100, botHp + 0.05); // Recupera vida fugindo da mira
+                botHp = Math.min(botMaxHp, botHp + 0.05); // Recupera vida fugindo da mira (respeita maxHp)
                 checkGameState();
             }
 
-            // Se recuperou vida suficiente (ex: > 60), volta a lutar
-            if (botHp > 60) { /* volta ao normal */ }
+            // Se recuperou vida suficiente (ex: > 60%), volta a lutar
+            if (botHp > (botMaxHp * 0.6)) { /* volta ao normal */ }
         } else if (hasLoS) {
             // IA DE ATAQUE (Já existente com Strafe)
             this.mesh.lookAt(camera.position.x, 0, camera.position.z);
@@ -253,8 +256,11 @@ const bot = new HumanoidBot();
 
 // --- GAMEPLAY CORE ---
 function checkGameState() {
-    document.getElementById('player-health-fill').style.width = playerHp + '%';
-    document.getElementById('bot-health-fill').style.width = botHp + '%';
+    const playerPercent = (playerHp / PLAYER_MAX_HP) * 100;
+    const botPercent = (botHp / botMaxHp) * 100;
+
+    document.getElementById('player-health-fill').style.width = playerPercent + '%';
+    document.getElementById('bot-health-fill').style.width = botPercent + '%';
     document.getElementById('ammo-count').innerText = currentMag;
     document.getElementById('total-ammo').innerText = reserveAmmo;
     document.getElementById('coin-count').innerText = coins;
@@ -275,62 +281,89 @@ function checkGameState() {
 function handleShoot() {
     if (isReloading || gameState !== 'PLAYING' || currentMag <= 0) return;
 
-    // Controle de cadência (Rifle atira a cada 100ms, Pistola a cada 400ms)
-    const fireRate = hasRifle ? 100 : 400;
+    // Controle de cadência (Rifle: 100ms, Shotgun: 800ms, Pistola: 400ms)
+    let fireRate = 400;
+    if (hasRifle) fireRate = 100;
+    else if (hasShotgun) fireRate = 800;
+
     if (Date.now() - lastShotTime < fireRate) return;
 
     lastShotTime = Date.now();
     currentMag--;
     weaponProxy.position.z += 0.2;
 
-    const ray = new THREE.Raycaster();
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    ray.set(camera.position, dir);
-
-    const hitsBot = ray.intersectObject(bot.mesh, true);
-    const hitsObs = ray.intersectObjects(obstacles, true);
-
-    let hitPoint = null;
     let hitSomething = false;
+    const pellets = hasShotgun ? 6 : 1;
+    const spread = hasShotgun ? 0.08 : 0.01;
 
-    // Calcular dano: Rifle 15, Pistola 20
-    const damage = hasRifle ? 15 : STATS.PLAYER.DAMAGE;
+    for (let i = 0; i < pellets; i++) {
+        const ray = new THREE.Raycaster();
+        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
 
-    if (hitsObs.length > 0) {
-        hitPoint = hitsObs[0].point;
-        hitSomething = true;
-    }
+        if (hasShotgun) {
+            dir.x += (Math.random() - 0.5) * spread;
+            dir.y += (Math.random() - 0.5) * spread;
+            dir.normalize();
+        }
 
-    if (hitsBot.length > 0) {
-        const botDist = hitsBot[0].distance;
-        const obsDist = hitsObs.length > 0 ? hitsObs[0].distance : Infinity;
+        ray.set(camera.position, dir);
+        const hitsBot = ray.intersectObject(bot.mesh, true);
+        const hitsObs = ray.intersectObjects(obstacles, true);
 
-        if (botDist < obsDist) {
-            botHp -= damage;
-            hitPoint = hitsBot[0].point;
-            hitSomething = true;
+        let hitPoint = null;
+        let hitSomethingInPellet = false;
+        const damage = hasShotgun ? 8 : (hasRifle ? 15 : STATS.PLAYER.DAMAGE);
+
+        if (hitsObs.length > 0) {
+            hitPoint = hitsObs[0].point;
+            hitSomethingInPellet = true;
+        }
+
+        if (hitsBot.length > 0) {
+            const botDist = hitsBot[0].distance;
+            const obsDist = hitsObs.length > 0 ? hitsObs[0].distance : Infinity;
+            if (botDist < obsDist) {
+                botHp -= damage;
+                hitPoint = hitsBot[0].point;
+                hitSomethingInPellet = true;
+                hitSomething = true;
+            }
+        }
+
+        // Tracer for each pellet
+        const tracerGeo = new THREE.BufferGeometry().setFromPoints([
+            camera.position.clone().add(new THREE.Vector3(0.3, -0.3, -0.5).applyQuaternion(camera.quaternion)),
+            hitPoint || camera.position.clone().add(dir.multiplyScalar(50))
+        ]);
+        const tracerMat = new THREE.LineBasicMaterial({
+            color: hasShotgun ? 0xcccccc : (hasRifle ? 0xff4400 : 0xffff00),
+            transparent: true, opacity: 0.8
+        });
+        const tracer = new THREE.Line(tracerGeo, tracerMat);
+        scene.add(tracer);
+        setTimeout(() => scene.remove(tracer), 50);
+
+        if (hitSomethingInPellet && hitPoint) {
+            const spark = new THREE.Mesh(new THREE.SphereGeometry(0.04), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            spark.position.copy(hitPoint);
+            scene.add(spark);
+            setTimeout(() => scene.remove(spark), 100);
         }
     }
 
-    // Tracer visual
-    const tracerGeo = new THREE.BufferGeometry().setFromPoints([
-        camera.position.clone().add(new THREE.Vector3(0.3, -0.3, -0.5).applyQuaternion(camera.quaternion)),
-        hitPoint || camera.position.clone().add(dir.multiplyScalar(50))
-    ]);
-    const tracerMat = new THREE.LineBasicMaterial({ color: hasRifle ? 0xff4400 : 0xffff00, transparent: true, opacity: 0.8 });
-    const tracer = new THREE.Line(tracerGeo, tracerMat);
-    scene.add(tracer);
-    setTimeout(() => scene.remove(tracer), 50);
-
-    if (hitSomething && hitPoint) {
-        const spark = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-        spark.position.copy(hitPoint);
-        scene.add(spark);
-        setTimeout(() => scene.remove(spark), 100);
-    }
-
     checkGameState();
+    if (hitSomething) showHitMarker();
     if (currentMag === 0) handleReload();
+}
+
+function showHitMarker() {
+    const crosshair = document.getElementById('crosshair');
+    crosshair.style.borderColor = '#ff0000';
+    crosshair.style.transform = 'translate(-50%, -50%) scale(1.5)';
+    setTimeout(() => {
+        crosshair.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+        crosshair.style.transform = 'translate(-50%, -50%) scale(1)';
+    }, 100);
 }
 
 function handleReload() {
@@ -390,7 +423,7 @@ window.addEventListener('mouseup', () => isMouseDown = false);
 
 // Ajuste no loop para tiro automático
 function autoFire() {
-    if (isMouseDown && hasRifle && gameState === 'PLAYING') {
+    if (isMouseDown && (hasRifle || hasShotgun) && gameState === 'PLAYING') {
         handleShoot();
     }
 }
@@ -400,14 +433,15 @@ function nextPhase() {
     document.getElementById('victory-overlay').classList.add('hidden');
 
     // Reset Player
-    playerHp = 100;
+    playerHp = PLAYER_MAX_HP;
     currentMag = hasRifle ? 30 : 20;
     reserveAmmo = hasRifle ? 120 : 40;
 
     // Reset Map and Bot for Phase 2
     generateMap();
     bot.reset();
-    botHp = 250; // Bot muito mais forte na Fase 2
+    botMaxHp = 250;
+    botHp = botMaxHp; // Bot muito mais forte na Fase 2
 
     gameState = 'PLAYING';
     controls.lock();
@@ -422,17 +456,59 @@ function buyRifle() {
     if (coins >= 50 && !hasRifle) {
         coins -= 50;
         hasRifle = true;
+        hasShotgun = false;
         document.getElementById('coin-count').innerText = coins;
         document.getElementById('buy-rifle').innerText = "COMPRADO";
         document.getElementById('buy-rifle').disabled = true;
+        document.getElementById('buy-shotgun').innerText = "COMPRAR (80 MOEDAS)";
+        document.getElementById('buy-shotgun').disabled = false;
 
-        // Mudar visual da arma (rifle mais longo)
-        weaponProxy.children[0].scale.z = 2;
+        // Visual do Rifle (longo e fino)
+        weaponProxy.children[0].scale.set(1, 1, 2);
         weaponProxy.children[0].position.z = -0.6;
 
         alert("RIFLE ADQUIRIDO! Atire segurando o mouse.");
     } else if (hasRifle) {
         alert("Já possui o Rifle!");
+    } else {
+        alert("Moedas insuficientes!");
+    }
+}
+
+function buyShotgun() {
+    if (coins >= 80 && !hasShotgun) {
+        coins -= 80;
+        hasShotgun = true;
+        hasRifle = false;
+        document.getElementById('coin-count').innerText = coins;
+        document.getElementById('buy-shotgun').innerText = "COMPRADO";
+        document.getElementById('buy-shotgun').disabled = true;
+        document.getElementById('buy-rifle').innerText = "COMPRAR (50 MOEDAS)";
+        document.getElementById('buy-rifle').disabled = false;
+
+        // Visual da Shotgun (larga e curta)
+        weaponProxy.children[0].scale.set(2.5, 1.2, 1);
+        weaponProxy.children[0].position.z = -0.3;
+
+        alert("ESCRAVOLTA ADQUIRIDA! Dano massivo a curta distância.");
+    } else if (hasShotgun) {
+        alert("Já possui a Shotgun!");
+    } else {
+        alert("Moedas insuficientes!");
+    }
+}
+
+function buyMedkit() {
+    if (coins >= 30) {
+        if (playerHp >= PLAYER_MAX_HP) {
+            alert("Vida já está cheia!");
+            return;
+        }
+        coins -= 30;
+        playerHp = Math.min(PLAYER_MAX_HP, playerHp + 50);
+        document.getElementById('coin-count').innerText = coins;
+        checkGameState();
+        alert("Vida recuperada!");
     } else {
         alert("Moedas insuficientes!");
     }
@@ -511,5 +587,7 @@ document.getElementById('close-shop').addEventListener('click', () => {
     document.getElementById('shop-overlay').classList.add('hidden');
 });
 document.getElementById('buy-rifle').addEventListener('click', buyRifle);
+document.getElementById('buy-shotgun').addEventListener('click', buyShotgun);
+document.getElementById('buy-medkit').addEventListener('click', buyMedkit);
 
 generateMap(); checkGameState(); bot.reset();
