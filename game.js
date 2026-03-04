@@ -165,18 +165,26 @@ class HumanoidBot {
             this.rArm.lookAt(camera.position);
             this.rArm.rotation.x += Math.PI / 2;
 
-            // NOVA INTELIGÊNCIA: Se o jogador estiver muito perto ( < 4m), o bot recua
-            // Se estiver longe ( > 7m), o bot avança
+            // --- IA DE MOVIMENTO AVANÇADA ---
+            // 1. Distância (Avançar/Recuar)
             if (dist > 7) {
-                // Avançar
                 this.moveBot(dir, STATS.BOT.SPEED);
             } else if (dist < 4) {
-                // Recuar (direção oposta ao jogador)
                 const retreatDir = dir.clone().negate();
                 this.moveBot(retreatDir, STATS.BOT.SPEED * 0.8);
             }
 
-            // Atirar se estiver no alcance aumentado (25m)
+            // 2. Strafe Aleatório (Movimento Lateral para desviar de tiros)
+            // Se o tempo de troca de direção acabou, escolhe uma nova direção (esquerda ou direita)
+            if (!this.strafeTime || Date.now() > this.strafeTime) {
+                this.strafeDir = Math.random() < 0.5 ? 1 : -1;
+                this.strafeTime = Date.now() + 500 + Math.random() * 1000;
+            }
+            // Vetor lateral perpendicular à direção do jogador
+            const sideMovement = new THREE.Vector3(-dir.z, 0, dir.x);
+            this.moveBot(sideMovement, STATS.BOT.SPEED * 0.7 * this.strafeDir);
+
+            // 3. Atirar no alcance de 25m
             if (!botIsReloading && dist <= STATS.BOT.MAX_RANGE && Date.now() - lastBotShot > 1200) {
                 this.shoot();
             }
