@@ -29,6 +29,7 @@ let lastShotTime = 0;
 let botAmmo = STATS.BOT.MAG_SIZE;
 let botIsReloading = false;
 let lastBotShot = 0;
+let lastPlayerDamageTime = 0; // Para regeneração de vida
 let obstacles = [];
 let obstacleBoxes = []; // Caixas de colisão AABB
 let playerActor = null; // Para a cena de vitória
@@ -292,6 +293,7 @@ class HumanoidBot {
 
         if (hit) {
             playerHp -= STATS.BOT.DAMAGE;
+            lastPlayerDamageTime = Date.now(); // Marca o tempo do último dano
             checkGameState();
 
             // Efeito visual de dano no HUD (opcional mas bom)
@@ -654,6 +656,13 @@ function loop() {
         move();
         bot.update();
         autoFire();
+
+        // --- SISTEMA DE REGENERAÇÃO ---
+        if (playerHp < PLAYER_MAX_HP && Date.now() - lastPlayerDamageTime > 5000) {
+            playerHp = Math.min(PLAYER_MAX_HP, playerHp + 0.08); // Recupera vida suavemente
+            checkGameState();
+        }
+
         weaponProxy.position.z += (-0.4 - weaponProxy.position.z) * 0.1;
         renderer.render(scene, camera);
     } else if (gameState === 'START') {
