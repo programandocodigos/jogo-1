@@ -93,6 +93,14 @@ function generateMap() {
     scene.add(floor);
 
     const addObj = (obj, x, z) => {
+        // --- ÁREA DE SEGURANÇA NO SPAWN ---
+        // Evita spawnar objetos a menos de 8 metros do jogador (0, 12)
+        const distToPlayer = Math.sqrt(x * x + (z - 12) * (z - 12));
+        if (distToPlayer < 8) return;
+
+        // Evita spawnar objetos no centro (onde o bot costuma transitar)
+        if (Math.abs(x) < 3 && Math.abs(z) < 3) return;
+
         obj.position.set(x, 0, z);
         obj.castShadow = true;
         obj.receiveShadow = true;
@@ -168,9 +176,13 @@ class HumanoidBot {
         if (currentPhase === 2) {
             clothesMat.color.set(0xff0000); // Roupas vermelhas na fase 2
             this.mesh.scale.set(1.2, 1.2, 1.2); // Um pouco maior
+            STATS.BOT.ACCURACY = 0.85; // Mais preciso na f2
+            STATS.BOT.RELOAD_TIME = 1200; // Recarga rápida
         } else {
             clothesMat.color.set(0x111111);
             this.mesh.scale.set(1, 1, 1);
+            STATS.BOT.ACCURACY = 0.75;
+            STATS.BOT.RELOAD_TIME = 2000;
         }
     }
 
@@ -231,7 +243,9 @@ class HumanoidBot {
             const sideMovement = new THREE.Vector3(-dir.z, 0, dir.x);
             this.moveBot(sideMovement, STATS.BOT.SPEED * 0.7 * this.strafeDir);
 
-            if (!botIsReloading && dist <= STATS.BOT.MAX_RANGE && Date.now() - lastBotShot > 1200) {
+            // Reduzir intervalo de tiro para o bot ser mais agressivo
+            const botFireRate = currentPhase === 2 ? 800 : 1200;
+            if (!botIsReloading && dist <= STATS.BOT.MAX_RANGE && Date.now() - lastBotShot > botFireRate) {
                 this.shoot();
             }
         } else {
