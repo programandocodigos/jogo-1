@@ -236,6 +236,7 @@ body {
     text-shadow: 0 0 30px #fbbf24;
     background: linear-gradient(to bottom, #fff700, #fbbf24);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -255,28 +256,56 @@ body {
 
 /* Shop UI */
 .shop-items {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin: 30px 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin: 20px 0;
 }
 
 .shop-item {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: 0.3s;
+    background: rgba(20, 20, 30, 0.8);
+    padding: 15px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.3s ease;
 }
 
 .shop-item:hover {
+    transform: translateY(-5px);
     border-color: var(--primary);
-    background: rgba(251, 191, 36, 0.05);
+    box-shadow: 0 10px 20px rgba(251, 191, 36, 0.1);
+}
+
+.weapon-preview {
+    width: 100px;
+    height: 60px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 0 5px var(--primary-glow));
 }
 
 .shop-item h3 {
+    font-size: 1rem;
     color: var(--primary);
+    margin-bottom: 2px;
+}
+
+.shop-item p {
+    font-size: 0.7rem;
+    opacity: 0.7;
     margin-bottom: 10px;
+}
+
+.shop-item .glow-btn {
+    width: 100%;
+    margin-top: auto;
+    padding: 10px;
+    font-size: 0.8rem;
 }
 
 .victory-btns {

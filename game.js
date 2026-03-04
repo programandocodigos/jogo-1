@@ -16,8 +16,7 @@ const STATS = {
 let gameState = 'START';
 let currentPhase = 1;
 let coins = 0;
-let hasRifle = false;
-let hasShotgun = false;
+let currentWeapon = 'PISTOL'; // 'PISTOL', 'RIFLE', 'SHOTGUN'
 let playerHp = 100;
 const PLAYER_MAX_HP = 100;
 let botHp = 100;
@@ -32,6 +31,7 @@ let botIsReloading = false;
 let lastBotShot = 0;
 let obstacles = [];
 let obstacleBoxes = []; // Caixas de colisão AABB
+let playerActor = null; // Para a cena de vitória
 const keys = {};
 
 // --- THREE.JS SCENE ---
@@ -155,7 +155,19 @@ class HumanoidBot {
 
     reset() {
         this.mesh.position.set((Math.random() - 0.5) * 40, 0, -20);
-        this.mesh.visible = true; botHp = 100; botAmmo = 10;
+        this.mesh.visible = true;
+        botHp = botMaxHp;
+        botAmmo = 10;
+
+        // Aparência diferente baseada na fase
+        const clothesMat = this.mesh.children[1].material;
+        if (currentPhase === 2) {
+            clothesMat.color.set(0xff0000); // Roupas vermelhas na fase 2
+            this.mesh.scale.set(1.2, 1.2, 1.2); // Um pouco maior
+        } else {
+            clothesMat.color.set(0x111111);
+            this.mesh.scale.set(1, 1, 1);
+        }
     }
 
     update() {
@@ -283,8 +295,8 @@ function handleShoot() {
 
     // Controle de cadência (Rifle: 100ms, Shotgun: 800ms, Pistola: 400ms)
     let fireRate = 400;
-    if (hasRifle) fireRate = 100;
-    else if (hasShotgun) fireRate = 800;
+    if (currentWeapon === 'RIFLE') fireRate = 100;
+    else if (currentWeapon === 'SHOTGUN') fireRate = 800;
 
     if (Date.now() - lastShotTime < fireRate) return;
 
@@ -293,14 +305,14 @@ function handleShoot() {
     weaponProxy.position.z += 0.2;
 
     let hitSomething = false;
-    const pellets = hasShotgun ? 6 : 1;
-    const spread = hasShotgun ? 0.08 : 0.01;
+    const pellets = currentWeapon === 'SHOTGUN' ? 6 : 1;
+    const spread = currentWeapon === 'SHOTGUN' ? 0.08 : 0.01;
 
     for (let i = 0; i < pellets; i++) {
         const ray = new THREE.Raycaster();
         const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
 
-        if (hasShotgun) {
+        if (currentWeapon === 'SHOTGUN') {
             dir.x += (Math.random() - 0.5) * spread;
             dir.y += (Math.random() - 0.5) * spread;
             dir.normalize();
@@ -312,7 +324,10 @@ function handleShoot() {
 
         let hitPoint = null;
         let hitSomethingInPellet = false;
-        const damage = hasShotgun ? 8 : (hasRifle ? 15 : STATS.PLAYER.DAMAGE);
+
+        let damage = STATS.PLAYER.DAMAGE; // Default Pistol (20)
+        if (currentWeapon === 'RIFLE') damage = 15;
+        else if (currentWeapon === 'SHOTGUN') damage = 8;
 
         if (hitsObs.length > 0) {
             hitPoint = hitsObs[0].point;
@@ -336,7 +351,7 @@ function handleShoot() {
             hitPoint || camera.position.clone().add(dir.multiplyScalar(50))
         ]);
         const tracerMat = new THREE.LineBasicMaterial({
-            color: hasShotgun ? 0xcccccc : (hasRifle ? 0xff4400 : 0xffff00),
+            color: currentWeapon === 'SHOTGUN' ? 0xcccccc : (currentWeapon === 'RIFLE' ? 0xff4400 : 0xffff00),
             transparent: true, opacity: 0.8
         });
         const tracer = new THREE.Line(tracerGeo, tracerMat);
@@ -375,7 +390,8 @@ function handleReload() {
         if (weaponProxy.position.y > -1.5) requestAnimationFrame(reloadLoop);
         else {
             setTimeout(() => {
-                const needed = STATS.PLAYER.MAG_SIZE - currentMag;
+                const magSize = currentWeapon === 'RIFLE' ? 30 : (currentWeapon === 'SHOTGUN' ? 12 : 20);
+                const needed = magSize - currentMag;
                 const toReload = Math.min(needed, reserveAmmo);
                 reserveAmmo -= toReload;
                 currentMag += toReload;
@@ -393,8 +409,14 @@ function runVictorySequence() {
     audio.currentTime = 0;
     audio.play().catch(e => console.log("Erro de áudio"));
     controls.unlock();
-    const playerActor = bot.mesh.clone();
-    playerActor.visible = true; playerActor.position.set(0, 0, 0); scene.add(playerActor);
+
+    // Limpar ator anterior se houver
+    if (playerActor) scene.remove(playerActor);
+
+    playerActor = bot.mesh.clone();
+    playerActor.visible = true;
+    playerActor.position.set(0, 0, 0);
+    scene.add(playerActor);
     bot.mesh.visible = false;
     const victoryAnim = () => {
         if (gameState !== 'VICTORY') return;
@@ -409,21 +431,24 @@ function runVictorySequence() {
     victoryAnim();
 }
 
-function fullReset() { location.reload(); }
+function fullReset() {
+    if (playerActor) scene.remove(playerActor);
+    location.reload();
+}
 
 window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener('mousedown', (e) => {
     if (e.button === 0) {
         isMouseDown = true;
-        if (!hasRifle) handleShoot(); // Pistola é um clique por vez
+        if (currentWeapon === 'PISTOL') handleShoot(); // Pistola é um clique por vez
     }
 });
 window.addEventListener('mouseup', () => isMouseDown = false);
 
 // Ajuste no loop para tiro automático
 function autoFire() {
-    if (isMouseDown && (hasRifle || hasShotgun) && gameState === 'PLAYING') {
+    if (isMouseDown && currentWeapon !== 'PISTOL' && gameState === 'PLAYING') {
         handleShoot();
     }
 }
@@ -432,16 +457,23 @@ function nextPhase() {
     currentPhase = 2;
     document.getElementById('victory-overlay').classList.add('hidden');
 
+    // Limpar o ator da vitória da cena para evitar "arma flutuando"
+    if (playerActor) {
+        scene.remove(playerActor);
+        playerActor = null;
+    }
+
     // Reset Player
     playerHp = PLAYER_MAX_HP;
-    currentMag = hasRifle ? 30 : 20;
-    reserveAmmo = hasRifle ? 120 : 40;
+    const magSize = currentWeapon === 'RIFLE' ? 30 : (currentWeapon === 'SHOTGUN' ? 12 : 20);
+    const reserveSize = currentWeapon === 'RIFLE' ? 120 : (currentWeapon === 'SHOTGUN' ? 36 : 40);
+    currentMag = magSize;
+    reserveAmmo = reserveSize;
 
     // Reset Map and Bot for Phase 2
+    botMaxHp = 200; // Pedido: 200 de vida na f2
     generateMap();
     bot.reset();
-    botMaxHp = 250;
-    botHp = botMaxHp; // Bot muito mais forte na Fase 2
 
     gameState = 'PLAYING';
     controls.lock();
@@ -453,22 +485,18 @@ function openShop() {
 }
 
 function buyRifle() {
-    if (coins >= 50 && !hasRifle) {
+    if (coins >= 50 && currentWeapon !== 'RIFLE') {
         coins -= 50;
-        hasRifle = true;
-        hasShotgun = false;
+        currentWeapon = 'RIFLE';
         document.getElementById('coin-count').innerText = coins;
-        document.getElementById('buy-rifle').innerText = "COMPRADO";
-        document.getElementById('buy-rifle').disabled = true;
-        document.getElementById('buy-shotgun').innerText = "COMPRAR (80 MOEDAS)";
-        document.getElementById('buy-shotgun').disabled = false;
+        updateShopButtons();
 
         // Visual do Rifle (longo e fino)
         weaponProxy.children[0].scale.set(1, 1, 2);
         weaponProxy.children[0].position.z = -0.6;
 
         alert("RIFLE ADQUIRIDO! Atire segurando o mouse.");
-    } else if (hasRifle) {
+    } else if (currentWeapon === 'RIFLE') {
         alert("Já possui o Rifle!");
     } else {
         alert("Moedas insuficientes!");
@@ -476,26 +504,44 @@ function buyRifle() {
 }
 
 function buyShotgun() {
-    if (coins >= 80 && !hasShotgun) {
+    if (coins >= 80 && currentWeapon !== 'SHOTGUN') {
         coins -= 80;
-        hasShotgun = true;
-        hasRifle = false;
+        currentWeapon = 'SHOTGUN';
         document.getElementById('coin-count').innerText = coins;
-        document.getElementById('buy-shotgun').innerText = "COMPRADO";
-        document.getElementById('buy-shotgun').disabled = true;
-        document.getElementById('buy-rifle').innerText = "COMPRAR (50 MOEDAS)";
-        document.getElementById('buy-rifle').disabled = false;
+        updateShopButtons();
 
         // Visual da Shotgun (larga e curta)
         weaponProxy.children[0].scale.set(2.5, 1.2, 1);
         weaponProxy.children[0].position.z = -0.3;
 
         alert("ESCRAVOLTA ADQUIRIDA! Dano massivo a curta distância.");
-    } else if (hasShotgun) {
+    } else if (currentWeapon === 'SHOTGUN') {
         alert("Já possui a Shotgun!");
     } else {
         alert("Moedas insuficientes!");
     }
+}
+
+function buyPistol() {
+    currentWeapon = 'PISTOL';
+    updateShopButtons();
+
+    // Visual da Pistola (padrão)
+    weaponProxy.children[0].scale.set(1, 1, 1);
+    weaponProxy.children[0].position.z = -0.3;
+
+    alert("PISTOLA EQUIPADA!");
+}
+
+function updateShopButtons() {
+    document.getElementById('buy-rifle').innerText = currentWeapon === 'RIFLE' ? "EQUIPADO" : "COMPRAR (50 MOEDAS)";
+    document.getElementById('buy-rifle').disabled = currentWeapon === 'RIFLE';
+
+    document.getElementById('buy-shotgun').innerText = currentWeapon === 'SHOTGUN' ? "EQUIPADO" : "COMPRAR (80 MOEDAS)";
+    document.getElementById('buy-shotgun').disabled = currentWeapon === 'SHOTGUN';
+
+    document.getElementById('buy-pistol').innerText = currentWeapon === 'PISTOL' ? "EQUIPADO" : "EQUIPAR PISTOLA (GRÁTIS)";
+    document.getElementById('buy-pistol').disabled = currentWeapon === 'PISTOL';
 }
 
 function buyMedkit() {
@@ -588,6 +634,7 @@ document.getElementById('close-shop').addEventListener('click', () => {
 });
 document.getElementById('buy-rifle').addEventListener('click', buyRifle);
 document.getElementById('buy-shotgun').addEventListener('click', buyShotgun);
+document.getElementById('buy-pistol').addEventListener('click', buyPistol);
 document.getElementById('buy-medkit').addEventListener('click', buyMedkit);
 
 generateMap(); checkGameState(); bot.reset();
