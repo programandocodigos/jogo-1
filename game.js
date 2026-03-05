@@ -183,12 +183,15 @@ function createStarfield() {
     const stars = new THREE.Points(starGeo, starMat);
     scene.add(stars);
 }
-createStarfield();
-
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const cameraHolder = new THREE.Group();
-cameraHolder.add(camera);
-scene.add(cameraHolder);
+
+// Novo sistema de camadas:
+// camera (controlada pelo mouse/PointerLock)
+// -> cameraRecoilGroup (onde aplicamos a inclinação do tiro)
+//    -> weaponProxy (a arma atrelada ao grupo de recuo)
+const cameraRecoilGroup = new THREE.Group();
+camera.add(cameraRecoilGroup);
+scene.add(camera);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -196,7 +199,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 document.getElementById('game-container').appendChild(renderer.domElement);
 
-const controls = new PointerLockControls(cameraHolder, document.body);
+const controls = new PointerLockControls(camera, document.body);
 
 // --- LIGHTING ---
 const ambient = new THREE.HemisphereLight(0xffffff, 0x080820, 0.6);
@@ -214,13 +217,8 @@ const createWeapon = () => {
     const gunMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.1 });
     const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.6), gunMat);
     barrel.position.z = -0.3;
-    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.2, 8), gunMat);
-    cyl.rotation.x = Math.PI / 2; cyl.position.z = -0.15;
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.15), new THREE.MeshStandardMaterial({ color: 0x221100 }));
-    grip.position.set(0, -0.2, -0.1); grip.rotation.x = 0.2;
-    weaponProxy.add(barrel, cyl, grip);
     weaponProxy.position.set(0.35, -0.25, -0.4);
-    camera.add(weaponProxy);
+    cameraRecoilGroup.add(weaponProxy);
 };
 createWeapon();
 
@@ -656,29 +654,29 @@ function handleShoot() {
     scene.add(flash);
     setTimeout(() => scene.remove(flash), 40);
 
-    // Efeito de "Soco" na Câmera (Recuo & Inclinação)
-    const shake = currentWeapon === 'SHOTGUN' ? 0.08 : 0.025;
+    // --- RECUO (RECOIL) VISUAL ISOLADO ---
+    // Aplicamos o recuo no cameraRecoilGroup para não brigar com o mouse
+    const recoilAmount = currentWeapon === 'RIFLE' ? 0.03 : (currentWeapon === 'SHOTGUN' ? 0.1 : 0.04);
 
-    // Inclinação para a DIREITA conforme solicitado para o Rifle
-    let tilt = 0;
+    // Sobe a mira visualmente
+    cameraRecoilGroup.rotation.x += recoilAmount;
+    cameraRecoilX += recoilAmount;
+
+    // Inclinação lateral (Z-axis roll) CONFORME SOLICITADO
     if (currentWeapon === 'RIFLE') {
-        tilt = -0.015; // Rotação Z negativa inclina para a direita no Three.js
-    } else {
-        tilt = (Math.random() - 0.5) * 0.01;
+        const tilt = -0.06; // Inclina para a direita
+        cameraRecoilGroup.rotation.z += tilt;
+        cameraRecoilZ += tilt;
+
+        // Inclina a ARMA um pouco mais para reforçar
+        weaponProxy.rotation.z += 0.1;
     }
 
-    camera.rotation.x += (shake * 0.4);
-    camera.rotation.z += tilt;
-
-    // Guardar valores para o loop desfazer suavemente no objeto CAMERA (que é imune ao mouse do holder)
-    cameraRecoilX += (shake * 0.4);
-    cameraRecoilZ += tilt;
-
-    // Soco rápido na posição
-    camera.position.y += shake;
+    // Soco na posição Y (aplicado no grupo para ser relativo)
+    cameraRecoilGroup.position.y += (recoilAmount * 0.4);
     setTimeout(() => {
-        camera.position.y -= shake;
-    }, 40);
+        cameraRecoilGroup.position.y -= (recoilAmount * 0.4);
+    }, 50);
 
     let hitSomething = false;
     const pellets = currentWeapon === 'SHOTGUN' ? 6 : 1;
@@ -728,8 +726,11 @@ function handleShoot() {
         }
 
         // Tracer for each pellet
+        const weaponWorldPos = new THREE.Vector3();
+        weaponProxy.getWorldPosition(weaponWorldPos);
+
         const tracerGeo = new THREE.BufferGeometry().setFromPoints([
-            camera.position.clone().add(new THREE.Vector3(0.3, -0.3, -0.5).applyQuaternion(camera.quaternion)),
+            weaponWorldPos,
             hitPoint || camera.position.clone().add(dir.multiplyScalar(50))
         ]);
         const tracerMat = new THREE.LineBasicMaterial({
@@ -882,6 +883,8 @@ function nextPhase() {
     // RESET CAMERA PARA EVITAR "FLUTUAR"
     camera.position.set(0, 1.7, 12);
     camera.lookAt(0, 1.7, 0);
+    camera.rotation.set(0, 0, 0); // Resetar rotação da câmera
+    cameraBaseRotation.set(0, 0, 0, 'YXZ'); // Resetar rotação base
 
     gameState = 'PLAYING';
     controls.lock();
@@ -1008,17 +1011,17 @@ function move() {
         }
 
         // Tentativa de movimento no eixo X
-        const nextPosX = cameraHolder.position.clone();
+        const nextPosX = camera.position.clone();
         nextPosX.x += moveVector.x;
         if (!checkPlayerCollision(nextPosX)) {
-            cameraHolder.position.x = nextPosX.x;
+            camera.position.x = nextPosX.x;
         }
 
         // Tentativa de movimento no eixo Z
-        const nextPosZ = cameraHolder.position.clone();
+        const nextPosZ = camera.position.clone();
         nextPosZ.z += moveVector.z;
         if (!checkPlayerCollision(nextPosZ)) {
-            cameraHolder.position.z = nextPosZ.z;
+            camera.position.z = nextPosZ.z;
         }
     }
 }
@@ -1056,20 +1059,25 @@ function loop() {
         }
 
         weaponProxy.position.z += (-0.4 - weaponProxy.position.z) * 0.1;
+        weaponProxy.rotation.z += (0 - weaponProxy.rotation.z) * 0.1;
 
-        // --- RECUPERAÇÃO DE RECUO DA CÂMERA (AUTO-CENTERING) ---
-        if (Math.abs(cameraRecoilX) > 0.0001) {
-            const step = cameraRecoilX * 0.15; // Velocidade de retorno
-            camera.rotation.x -= step;
-            cameraRecoilX -= step;
-        }
-        if (Math.abs(cameraRecoilZ) > 0.0001) {
-            const step = cameraRecoilZ * 0.15;
-            camera.rotation.z -= step;
-            cameraRecoilZ -= step;
+        // --- RECUPERAÇÃO DE RECUO NO GRUPO ISOLADO ---
+        if (Math.abs(cameraRecoilZ) > 0.001) {
+            const recovery = cameraRecoilZ * 0.15;
+            cameraRecoilGroup.rotation.z -= recovery;
+            cameraRecoilZ -= recovery;
         } else {
-            camera.rotation.z = 0;
+            cameraRecoilGroup.rotation.z = 0;
             cameraRecoilZ = 0;
+        }
+
+        if (Math.abs(cameraRecoilX) > 0.001) {
+            const recovery = cameraRecoilX * 0.15;
+            cameraRecoilGroup.rotation.x -= recovery;
+            cameraRecoilX -= recovery;
+        } else {
+            cameraRecoilGroup.rotation.x = 0;
+            cameraRecoilX = 0;
         }
 
         renderer.render(scene, camera);
@@ -1080,8 +1088,9 @@ function loop() {
 
 document.getElementById('start-btn').addEventListener('click', () => {
     document.getElementById('start-overlay').classList.add('hidden');
-    cameraHolder.position.set(0, 1.7, 12);
-    camera.position.set(0, 0, 0); // Reset do soco/kick
+    camera.position.set(0, 1.7, 12);
+    camera.rotation.set(0, 0, 0);
+    cameraRecoilGroup.rotation.set(0, 0, 0);
     gameState = 'PLAYING'; controls.lock(); loop();
 });
 
