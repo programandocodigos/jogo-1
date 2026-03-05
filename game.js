@@ -186,13 +186,17 @@ function createStarfield() {
 createStarfield();
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const cameraHolder = new THREE.Group();
+cameraHolder.add(camera);
+scene.add(cameraHolder);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 document.getElementById('game-container').appendChild(renderer.domElement);
 
-const controls = new PointerLockControls(camera, document.body);
+const controls = new PointerLockControls(cameraHolder, document.body);
 
 // --- LIGHTING ---
 const ambient = new THREE.HemisphereLight(0xffffff, 0x080820, 0.6);
@@ -217,7 +221,6 @@ const createWeapon = () => {
     weaponProxy.add(barrel, cyl, grip);
     weaponProxy.position.set(0.35, -0.25, -0.4);
     camera.add(weaponProxy);
-    scene.add(camera);
 };
 createWeapon();
 
@@ -602,7 +605,8 @@ let cameraPunchY = 0; // Para o shake vertical suave
 // --- GAMEPLAY CORE ---
 function checkGameState() {
     const playerPercent = (playerHp / PLAYER_MAX_HP) * 100;
-    document.getElementById('player-health-fill').style.width = playerPercent + '%';
+    const playerFill = document.getElementById('player-health-fill');
+    if (playerFill) playerFill.style.width = playerPercent + '%';
     document.getElementById('ammo-count').innerText = currentMag;
     document.getElementById('total-ammo').innerText = reserveAmmo;
     document.getElementById('coin-count').innerText = coins;
@@ -652,14 +656,21 @@ function handleShoot() {
     scene.add(flash);
     setTimeout(() => scene.remove(flash), 40);
 
-    // Efeito de "Soco" na Câmera (Recuo & Torção)
+    // Efeito de "Soco" na Câmera (Recuo & Inclinação)
     const shake = currentWeapon === 'SHOTGUN' ? 0.08 : 0.025;
-    const tilt = (Math.random() - 0.5) * (shake * 0.8); // Torção lateral aleatória
+
+    // Inclinação para a DIREITA conforme solicitado para o Rifle
+    let tilt = 0;
+    if (currentWeapon === 'RIFLE') {
+        tilt = -0.015; // Rotação Z negativa inclina para a direita no Three.js
+    } else {
+        tilt = (Math.random() - 0.5) * 0.01;
+    }
 
     camera.rotation.x += (shake * 0.4);
     camera.rotation.z += tilt;
 
-    // Guardar valores para o loop desfazer suavemente
+    // Guardar valores para o loop desfazer suavemente no objeto CAMERA (que é imune ao mouse do holder)
     cameraRecoilX += (shake * 0.4);
     cameraRecoilZ += tilt;
 
@@ -997,17 +1008,17 @@ function move() {
         }
 
         // Tentativa de movimento no eixo X
-        const nextPosX = camera.position.clone();
+        const nextPosX = cameraHolder.position.clone();
         nextPosX.x += moveVector.x;
         if (!checkPlayerCollision(nextPosX)) {
-            camera.position.x = nextPosX.x;
+            cameraHolder.position.x = nextPosX.x;
         }
 
         // Tentativa de movimento no eixo Z
-        const nextPosZ = camera.position.clone();
+        const nextPosZ = cameraHolder.position.clone();
         nextPosZ.z += moveVector.z;
         if (!checkPlayerCollision(nextPosZ)) {
-            camera.position.z = nextPosZ.z;
+            cameraHolder.position.z = nextPosZ.z;
         }
     }
 }
@@ -1069,7 +1080,8 @@ function loop() {
 
 document.getElementById('start-btn').addEventListener('click', () => {
     document.getElementById('start-overlay').classList.add('hidden');
-    camera.position.set(0, 1.7, 12);
+    cameraHolder.position.set(0, 1.7, 12);
+    camera.position.set(0, 0, 0); // Reset do soco/kick
     gameState = 'PLAYING'; controls.lock(); loop();
 });
 
