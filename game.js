@@ -683,6 +683,7 @@ function handleShoot() {
     const spread = currentWeapon === 'SHOTGUN' ? 0.08 : 0.01;
 
     for (let i = 0; i < pellets; i++) {
+        let hitSomethingInPellet = false;
         const ray = new THREE.Raycaster();
         const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
 
