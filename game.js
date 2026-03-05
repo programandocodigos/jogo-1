@@ -451,26 +451,46 @@ const bot = null; // Removido bot global solto
 // --- GAMEPLAY CORE ---
 function checkGameState() {
     const playerPercent = (playerHp / PLAYER_MAX_HP) * 100;
-    const botPercent = (botHp / botMaxHp) * 100;
-
     document.getElementById('player-health-fill').style.width = playerPercent + '%';
-    document.getElementById('bot-health-fill').style.width = botPercent + '%';
     document.getElementById('ammo-count').innerText = currentMag;
     document.getElementById('total-ammo').innerText = reserveAmmo;
     document.getElementById('coin-count').innerText = coins;
+
+    // HUD de Bot: Na Fase 1, não mostramos a vida do bot no HUD principal (conforme solicitado)
+    const botHud1 = document.getElementById('bot-health-container');
+    const botHud2 = document.getElementById('bot-health-container-2');
+
+    if (currentPhase === 1) {
+        botHud1.classList.add('hidden');
+        botHud2.classList.add('hidden');
+    } else if (currentPhase === 2) {
+        botHud1.classList.remove('hidden');
+        botHud2.classList.remove('hidden');
+
+        if (bots[0]) {
+            document.getElementById('bot-health-fill').style.width = (bots[0].hp / botMaxHp * 100) + '%';
+        }
+        if (bots[1]) {
+            document.getElementById('bot-health-fill-2').style.width = (bots[1].hp / botMaxHp * 100) + '%';
+        }
+    } else {
+        // Fases superiores (Boss)
+        botHud1.classList.remove('hidden');
+        botHud2.classList.add('hidden');
+        const botPercent = (botHp / botMaxHp) * 100;
+        document.getElementById('bot-health-fill').style.width = botPercent + '%';
+    }
 
     if (playerHp <= 0 && gameState === 'PLAYING') {
         gameState = 'GAMEOVER';
         document.getElementById('game-over-overlay').classList.remove('hidden');
         controls.unlock();
     }
-    if (botHp <= 0 && gameState === 'PLAYING') {
-        // Encontrar o próximo bot ou vencer
-        const aliveBots = bots.filter(b => b.mesh.visible);
-        if (aliveBots.length > 0) {
-            // botHp reseta para o próximo bot (simulação)
-            botHp = botMaxHp;
-        } else {
+
+    // Vitória: Se não houver bots vivos
+    if (gameState === 'PLAYING') {
+        const anyAlive = bots.some(b => b.hp > 0);
+        if (!anyAlive) {
             gameState = 'VICTORY';
             coins += 50;
             document.getElementById('coin-count').innerText = coins;
@@ -532,7 +552,7 @@ function handleShoot() {
 
         if (targetBot && bestBotDist < obsDist) {
             targetBot.hp -= damage;
-            botHp = targetBot.hp; // Atualiza a barra de vida global para o bot focado
+            if (currentPhase !== 2) botHp = targetBot.hp; // Mantém fallback para o sistema antigo
             hitSomethingInPellet = true;
             hitSomething = true;
         } else if (hitsObs.length > 0) {
