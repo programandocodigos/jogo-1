@@ -14,26 +14,82 @@ const STATS = {
 
 // --- AUDIO SYSTEM (Procedural Sounds) ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// Pré-gerar buffer de ruído branco para explosões/tiros
+const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+const output = noiseBuffer.getChannelData(0);
+for (let i = 0; i < noiseBuffer.length; i++) output[i] = Math.random() * 2 - 1;
+
 function playSound(type) {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    if (audioCtx.state === 'suspended') audioCtx.resume();
 
     if (type === 'SHOOT') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        const weapon = currentWeapon || 'PISTOL';
+
+        // Camada 1: O "Impacto" (Grave/Punch)
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        // Camada 2: O "Ruído" (Clique mecânico e explosão)
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = noiseBuffer;
+        const noiseGain = audioCtx.createGain();
+        noise.connect(noiseGain);
+        noiseGain.connect(audioCtx.destination);
+
+        if (weapon === 'SHOTGUN') {
+            // Som gordo e explosivo
+            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+            noiseGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+            noise.start(); noise.stop(audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        } else if (weapon === 'RIFLE') {
+            // Som rápido e metálico
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            noiseGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+            noise.start(); noise.stop(audioCtx.currentTime + 0.1);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        } else {
+            // Pistola Padrão
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+
+            noiseGain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            noise.start(); noise.stop(audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        }
     } else if (type === 'STEP') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(50, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     } else if (type === 'RELOAD') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(400, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.2);
@@ -541,8 +597,23 @@ function handleShoot() {
 
     lastShotTime = Date.now();
     currentMag--;
-    weaponProxy.position.z += 0.2;
+    weaponProxy.position.z += 0.3; // Recuo visual da arma
     playSound('SHOOT');
+
+    // Muzzle Flash Effect (Luz rápida)
+    const flash = new THREE.PointLight(0xffcc00, 10, 10);
+    const flashDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    flash.position.copy(camera.position).add(flashDir.multiplyScalar(1));
+    scene.add(flash);
+    setTimeout(() => scene.remove(flash), 40);
+
+    // Efeito de "Soco" na Câmera (Shake & Kickback)
+    const shake = currentWeapon === 'SHOTGUN' ? 0.05 : 0.02;
+    camera.position.y += shake;
+    camera.rotation.x += (shake * 0.5); // Adiciona um pouco de "pulo" na mira
+    setTimeout(() => {
+        camera.position.y -= shake;
+    }, 30);
 
     let hitSomething = false;
     const pellets = currentWeapon === 'SHOTGUN' ? 6 : 1;
@@ -611,16 +682,6 @@ function handleShoot() {
             setTimeout(() => scene.remove(spark), 100);
         }
     }
-
-    // --- MUZZLE FLASH E RECUO (NOVO!) ---
-    const flash = new THREE.PointLight(0xffff00, 2, 5);
-    flash.position.set(0.3, -0.2, -0.8).applyQuaternion(camera.quaternion).add(camera.position);
-    scene.add(flash);
-    setTimeout(() => scene.remove(flash), 30);
-
-    // Tremer a tela (Recuo)
-    camera.position.y += 0.05;
-    camera.rotation.x += 0.02;
 
     checkGameState();
     if (hitSomething) showHitMarker();
