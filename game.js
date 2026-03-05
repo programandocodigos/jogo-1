@@ -12,6 +12,37 @@ const STATS = {
     BOT: { HP: 100, DAMAGE: 10, SPEED: 0.07, ACCURACY: 0.75, MAG_SIZE: 12, RELOAD_TIME: 2000, MAX_RANGE: 40 }
 };
 
+// --- AUDIO SYSTEM (Procedural Sounds) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(type) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (type === 'SHOOT') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    } else if (type === 'STEP') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(50, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    } else if (type === 'RELOAD') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+    }
+}
+
 // --- SYSTEM STATE ---
 let gameState = 'START';
 let currentPhase = 1;
@@ -176,14 +207,29 @@ function generateMap() {
         addObj(container, (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 90);
     }
 
-    // --- GRAMINHA 3D ---
-    for (let i = 0; i < 100; i++) {
+    // --- CHÃO COM TEXTURA DE GRAMA (SIMULADA) ---
+    const grassMat = new THREE.MeshStandardMaterial({
+        color: 0x052d05,
+        roughness: 0.8,
+        metalness: 0.1
+    });
+    const grassFloor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), grassMat);
+    grassFloor.rotation.x = -Math.PI / 2;
+    grassFloor.receiveShadow = true;
+    scene.add(grassFloor);
+    floor = grassFloor;
+
+    // --- DETALHES DE GRAMA 3D (FIOS) ---
+    for (let i = 0; i < 300; i++) {
         const grass = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, Math.random() * 0.5, 0.1),
+            new THREE.BoxGeometry(0.05, Math.random() * 0.4, 0.05),
             new THREE.MeshStandardMaterial({ color: 0x114411 })
         );
-        grass.position.set((Math.random() - 0.5) * 100, 0, (Math.random() - 0.5) * 100);
+        const gx = (Math.random() - 0.5) * 110;
+        const gz = (Math.random() - 0.5) * 110;
+        grass.position.set(gx, 0.1, gz);
         scene.add(grass);
+        obstacles.push(grass); // Adiciona grama aos obstáculos para não spawnar caixas em cima
     }
 }
 
@@ -400,7 +446,7 @@ class HumanoidBot {
         }
     }
 } // <--- FECHAMENTO DA CLASSE HUMANOIDBOT
-const bot = new HumanoidBot();
+const bot = null; // Removido bot global solto
 
 // --- GAMEPLAY CORE ---
 function checkGameState() {
@@ -446,6 +492,7 @@ function handleShoot() {
     lastShotTime = Date.now();
     currentMag--;
     weaponProxy.position.z += 0.2;
+    playSound('SHOOT');
 
     let hitSomething = false;
     const pellets = currentWeapon === 'SHOTGUN' ? 6 : 1;
@@ -553,8 +600,9 @@ function handleReload() {
                 const toReload = Math.min(needed, reserveAmmo);
                 reserveAmmo -= toReload;
                 currentMag += toReload;
+                weaponProxy.position.y = initialY; // CORREÇÃO: Volta a arma para a posição original
                 isReloading = false; checkGameState();
-                console.log("ARMA RECARREGADA!"); // Placeholder para som de recarga metálica
+                playSound('RELOAD');
             }, 1000);
         }
     };
@@ -608,6 +656,10 @@ window.addEventListener('mouseup', () => isMouseDown = false);
 function autoFire() {
     if (isMouseDown && currentWeapon !== 'PISTOL' && gameState === 'PLAYING') {
         handleShoot();
+    }
+    // RECARGA AUTOMÁTICA
+    if (currentMag === 0 && !isReloading && reserveAmmo > 0 && gameState === 'PLAYING') {
+        handleReload();
     }
 }
 
@@ -770,10 +822,10 @@ function move() {
     if (moveVector.length() > 0) {
         moveVector.normalize().multiplyScalar(STATS.PLAYER.SPEED);
 
-        // --- SOM DE PASSOS (SIMULADO POR LOG E VISUAL) ---
+        // --- SOM DE PASSOS ---
         if (Date.now() > footstepCooldown) {
-            console.log("Passo na graminha...");
-            camera.position.y += Math.sin(Date.now() * 0.01) * 0.05; // Cabeça balançando levemente
+            playSound('STEP');
+            camera.position.y += Math.sin(Date.now() * 0.01) * 0.05;
             footstepCooldown = Date.now() + 350;
         }
 
@@ -860,9 +912,12 @@ try {
     generateMap();
     checkGameState();
 
-    // Inicializar o primeiro bot
+    // Inicializar o primeiro bot (SOMENTE UM NA FASE 1)
+    bots.forEach(b => scene.remove(b.mesh));
+    bots = [];
     const bot1 = new HumanoidBot();
     bots.push(bot1);
+    bot1.reset();
 
     console.log("Jogo pronto para iniciar!");
 } catch (err) {
