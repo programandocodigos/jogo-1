@@ -295,8 +295,10 @@ class HumanoidBot {
             this.maxHp = 1000;
         }
 
-        // Criar elemento de interface para este bot
-        this.createHealthBar();
+        // Criar elemento de interface para este bot se não existir
+        if (!document.getElementById(`bar-wrapper-${this.id}`)) {
+            this.createHealthBar();
+        }
     }
 
     createHealthBar() {
@@ -508,14 +510,9 @@ function checkGameState() {
     // Atualizar UI de todos os bots vivos
     bots.forEach(b => b.updateUI());
 
-    // HUD de Bot: Na Fase 1, não mostramos a vida do bot no HUD (conforme solicitado)
+    // HUD de Bot
     const botsHud = document.getElementById('bots-health-container');
-
-    if (currentPhase === 1) {
-        botsHud.classList.add('hidden');
-    } else {
-        botsHud.classList.remove('hidden');
-    }
+    if (botsHud) botsHud.classList.remove('hidden');
 
     if (playerHp <= 0 && gameState === 'PLAYING') {
         gameState = 'GAMEOVER';
@@ -1012,7 +1009,7 @@ try {
     bots = [];
     const bot1 = new HumanoidBot();
     bots.push(bot1);
-    bot1.reset();
+    // bot1.reset() removido para não duplicar a criação da barra de vida no constructor
 
     console.log("Jogo pronto para iniciar!");
 } catch (err) {
