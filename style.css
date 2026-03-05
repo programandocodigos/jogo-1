@@ -181,8 +181,8 @@ body {
     box-shadow: 0 0 30px var(--primary);
 }
 
-/* Game Over Styling */
-#game-over-overlay {
+/* Game Over & Pause Styling */
+#game-over-overlay, #pause-overlay {
     background: rgba(0, 0, 0, 0.7);
 }
 

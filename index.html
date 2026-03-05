@@ -24,7 +24,8 @@
     <div id="game-container">
         <!-- HUD Principal -->
         <header id="hud" class="glass">
-            <div id="game-title">BOX FIGHT 2026</div>
+            <div id="game-title">BOX FIGHT 2026 <span id="phase-display"
+                    style="color: #fff; margin-left:15px; font-size: 0.9rem; opacity: 0.8;">FASE 1</span></div>
             <div class="stats">
                 <div class="stat-item health-container">
                     <span class="label">SANGUE JOGADOR</span>
@@ -39,17 +40,8 @@
                     <span class="label">MOEDAS</span>
                     <div id="coin-count" class="coin-hud">0</div>
                 </div>
-                <div id="bot-health-container" class="stat-item health-container">
-                    <span id="bot-name-1" class="label">SANGUE BOT</span>
-                    <div class="health-bar bot-health">
-                        <div id="bot-health-fill" class="health-fill"></div>
-                    </div>
-                </div>
-                <div id="bot-health-container-2" class="stat-item health-container hidden">
-                    <span id="bot-name-2" class="label">SANGUE BOT 2</span>
-                    <div class="health-bar bot-health">
-                        <div id="bot-health-fill-2" class="health-fill"></div>
-                    </div>
+                <div id="bots-health-container" class="stat-item health-container">
+                    <!-- Barras de vida dos bots serão geradas aqui via JS -->
                 </div>
             </div>
         </header>
@@ -70,6 +62,14 @@
             <div class="content glass">
                 <h1 class="blood-text blood-dripping">DERROTADO</h1>
                 <button id="retry-btn" class="glow-btn">REENTRAR</button>
+            </div>
+        </div>
+
+        <div id="pause-overlay" class="overlay hidden">
+            <div class="content glass">
+                <h1>PAUSADO</h1>
+                <p>O combate parou momentaneamente.</p>
+                <button id="resume-btn" class="glow-btn">VOLTAR AO COMBATE</button>
             </div>
         </div>
 

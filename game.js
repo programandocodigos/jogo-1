@@ -63,6 +63,7 @@ let lastBotShot = 0;
 let lastPlayerDamageTime = 0; // Para regeneração de vida
 let obstacles = [];
 let obstacleBoxes = []; // Caixas de colisão AABB
+let solidObstacles = []; // Apenas paredes e objetos grandes (não grama)
 let playerActor = null; // Para a cena de vitória
 let bots = []; // Novo sistema de múltiplos bots
 let footstepCooldown = 0;
@@ -157,6 +158,7 @@ function generateMap() {
         // Criar caixa de colisão para o objeto
         const box = new THREE.Box3().setFromObject(obj);
         obstacleBoxes.push(box);
+        solidObstacles.push(obj);
     };
 
     // Concrete Walls
@@ -181,6 +183,7 @@ function generateMap() {
         // Caixa de colisão para a árvore (baseada no tronco)
         const box = new THREE.Box3().setFromObject(trunk);
         obstacleBoxes.push(box);
+        solidObstacles.push(trunk);
     } // Fim do loop de árvores
 
     // --- LIMITES DO MAPA (PAREDES INVISÍVEIS) ---
@@ -229,14 +232,17 @@ function generateMap() {
         const gz = (Math.random() - 0.5) * 110;
         grass.position.set(gx, 0.1, gz);
         scene.add(grass);
-        obstacles.push(grass); // Adiciona grama aos obstáculos para não spawnar caixas em cima
+        // NÃO ADICIONAR AO solidObstacles PARA NÃO PESAR A IA
     }
 }
 
 // --- HUMANOID BOT SNIPER AI ---
 class HumanoidBot {
-    constructor() {
+    constructor(isBoss = false) {
+        this.isBoss = isBoss;
+        this.id = Math.random().toString(36).substr(2, 9);
         this.hp = botMaxHp;
+        this.maxHp = botMaxHp;
         this.mesh = new THREE.Group();
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c });
         const clothesMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
@@ -286,6 +292,31 @@ class HumanoidBot {
             this.mesh.scale.set(5, 5, 5);
             this.mesh.children[0].material.color.set(0x000000); // Cabeça preta
             this.hp = 1000;
+            this.maxHp = 1000;
+        }
+
+        // Criar elemento de interface para este bot
+        this.createHealthBar();
+    }
+
+    createHealthBar() {
+        const container = document.getElementById('bots-health-container');
+        const barWrapper = document.createElement('div');
+        barWrapper.id = `bar-wrapper-${this.id}`;
+        barWrapper.innerHTML = `
+            <span style="font-size:0.7rem; color:var(--primary)">BOT ${this.isBoss ? 'BOSS' : 'ARENA'}</span>
+            <div class="health-bar bot-health">
+                <div id="fill-${this.id}" class="health-fill" style="width: 100%"></div>
+            </div>
+        `;
+        container.appendChild(barWrapper);
+    }
+
+    updateUI() {
+        const fill = document.getElementById(`fill-${this.id}`);
+        if (fill) {
+            const percent = (this.hp / this.maxHp) * 100;
+            fill.style.width = percent + '%';
         }
     }
 
@@ -301,8 +332,8 @@ class HumanoidBot {
         const scanStart = this.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
         this.ray.set(scanStart, dir);
 
-        // Agora verificamos contra TODOS os obstáculos (paredes e árvores)
-        const hits = this.ray.intersectObjects(obstacles, true);
+        // Verificamos apenas contra sólidos reais (ignora grama)
+        const hits = this.ray.intersectObjects(solidObstacles, true);
         const hasLoS = (hits.length === 0 || hits[0].distance > dist);
 
         // --- SISTEMA DE COBERTURA (BOT COM POUCA VIDA) ---
@@ -373,6 +404,16 @@ class HumanoidBot {
     }
 
     moveBot(direction, speed) {
+        // --- EVITAR OUTROS BOTS ---
+        bots.forEach(other => {
+            if (other === this || other.hp <= 0) return;
+            const dist = this.mesh.position.distanceTo(other.mesh.position);
+            if (dist < 2) {
+                const pushDir = new THREE.Vector3().subVectors(this.mesh.position, other.mesh.position).normalize();
+                direction.addScaledVector(pushDir, 0.5); // Força de separação
+            }
+        });
+
         const nextBotPos = this.mesh.position.clone().addScaledVector(direction, speed);
         const botBox = new THREE.Box3().setFromCenterAndSize(nextBotPos, new THREE.Vector3(1, 2, 1));
         let collide = false;
@@ -437,16 +478,23 @@ class HumanoidBot {
 
         if (hit) {
             playerHp -= STATS.BOT.DAMAGE;
-            lastPlayerDamageTime = Date.now(); // Marca o tempo do último dano
+            lastPlayerDamageTime = Date.now();
             checkGameState();
 
-            // Efeito visual de dano no HUD (opcional mas bom)
             document.body.style.boxShadow = "inset 0 0 50px #ff0000";
             setTimeout(() => document.body.style.boxShadow = "none", 100);
         }
     }
+
+    die() {
+        this.mesh.visible = false;
+        const wrapper = document.getElementById(`bar-wrapper-${this.id}`);
+        if (wrapper) wrapper.remove();
+        checkGameState();
+    }
 } // <--- FECHAMENTO DA CLASSE HUMANOIDBOT
 const bot = null; // Removido bot global solto
+let isPaused = false;
 
 // --- GAMEPLAY CORE ---
 function checkGameState() {
@@ -455,30 +503,18 @@ function checkGameState() {
     document.getElementById('ammo-count').innerText = currentMag;
     document.getElementById('total-ammo').innerText = reserveAmmo;
     document.getElementById('coin-count').innerText = coins;
+    document.getElementById('phase-display').innerText = `FASE ${currentPhase}`;
 
-    // HUD de Bot: Na Fase 1, não mostramos a vida do bot no HUD principal (conforme solicitado)
-    const botHud1 = document.getElementById('bot-health-container');
-    const botHud2 = document.getElementById('bot-health-container-2');
+    // Atualizar UI de todos os bots vivos
+    bots.forEach(b => b.updateUI());
+
+    // HUD de Bot: Na Fase 1, não mostramos a vida do bot no HUD (conforme solicitado)
+    const botsHud = document.getElementById('bots-health-container');
 
     if (currentPhase === 1) {
-        botHud1.classList.add('hidden');
-        botHud2.classList.add('hidden');
-    } else if (currentPhase === 2) {
-        botHud1.classList.remove('hidden');
-        botHud2.classList.remove('hidden');
-
-        if (bots[0]) {
-            document.getElementById('bot-health-fill').style.width = (bots[0].hp / botMaxHp * 100) + '%';
-        }
-        if (bots[1]) {
-            document.getElementById('bot-health-fill-2').style.width = (bots[1].hp / botMaxHp * 100) + '%';
-        }
+        botsHud.classList.add('hidden');
     } else {
-        // Fases superiores (Boss)
-        botHud1.classList.remove('hidden');
-        botHud2.classList.add('hidden');
-        const botPercent = (botHp / botMaxHp) * 100;
-        document.getElementById('bot-health-fill').style.width = botPercent + '%';
+        botsHud.classList.remove('hidden');
     }
 
     if (playerHp <= 0 && gameState === 'PLAYING') {
@@ -487,15 +523,12 @@ function checkGameState() {
         controls.unlock();
     }
 
-    // Vitória: Se não houver bots vivos
-    if (gameState === 'PLAYING') {
-        const anyAlive = bots.some(b => b.hp > 0);
-        if (!anyAlive) {
-            gameState = 'VICTORY';
-            coins += 50;
-            document.getElementById('coin-count').innerText = coins;
-            runVictorySequence();
-        }
+    const aliveBots = bots.filter(b => b.hp > 0);
+    if (aliveBots.length === 0 && gameState === 'PLAYING') {
+        gameState = 'VICTORY';
+        coins += 50;
+        document.getElementById('coin-count').innerText = coins;
+        runVictorySequence();
     }
 }
 
@@ -552,7 +585,8 @@ function handleShoot() {
 
         if (targetBot && bestBotDist < obsDist) {
             targetBot.hp -= damage;
-            if (currentPhase !== 2) botHp = targetBot.hp; // Mantém fallback para o sistema antigo
+            if (targetBot.hp <= 0) targetBot.die();
+            else if (currentPhase !== 2) botHp = targetBot.hp; // Fallback para sistemas que ainda usem botHp global
             hitSomethingInPellet = true;
             hitSomething = true;
         } else if (hitsObs.length > 0) {
@@ -639,11 +673,15 @@ function runVictorySequence() {
     // Limpar ator anterior se houver
     if (playerActor) scene.remove(playerActor);
 
-    playerActor = bot.mesh.clone();
+    // Pegar o mesh de um dos bots para a sequência de vitória
+    const templateMesh = (bots.length > 0) ? bots[0].mesh : new THREE.Group();
+    playerActor = templateMesh.clone();
     playerActor.visible = true;
     playerActor.position.set(0, 0, 0);
     scene.add(playerActor);
-    bot.mesh.visible = false;
+
+    // Esconder todos os bots originais
+    bots.forEach(b => b.mesh.visible = false);
     const victoryAnim = () => {
         if (gameState !== 'VICTORY') return;
         camera.position.lerp(new THREE.Vector3(0, 4, 8), 0.05);
@@ -703,18 +741,15 @@ function nextPhase() {
     // Reset Map
     generateMap();
     bots.forEach(b => scene.remove(b.mesh));
+    document.getElementById('bots-health-container').innerHTML = ''; // Limpa HUD
     bots = [];
 
     if (currentPhase === 2) {
-        botMaxHp = 200;
+        botMaxHp = 150;
         bots.push(new HumanoidBot(), new HumanoidBot());
     } else if (currentPhase >= 3) {
-        // BOSS FINAL (GIGANTE)
         botMaxHp = 1000;
-        const boss = new HumanoidBot();
-        boss.mesh.scale.set(5, 5, 5);
-        boss.hp = 1000;
-        boss.isBoss = true;
+        const boss = new HumanoidBot(true); // Passa isBoss = true
         bots.push(boss);
         alert("FASE 3: O BOSS GIGANTE APARECEU!");
     }
@@ -867,6 +902,9 @@ function move() {
 
 function loop() {
     requestAnimationFrame(loop);
+
+    if (isPaused) return;
+
     if (gameState === 'PLAYING') {
         move();
         bots.forEach(b => b.update()); // Atualiza todos os bots
@@ -927,13 +965,50 @@ document.getElementById('retry-btn').addEventListener('click', () => {
 });
 document.getElementById('reset-btn').addEventListener('click', fullReset);
 
+// --- SISTEMA DE PAUSA ---
+function togglePause() {
+    if (gameState !== 'PLAYING') return;
+    isPaused = !isPaused;
+    const pauseOverlay = document.getElementById('pause-overlay');
+    if (isPaused) {
+        pauseOverlay.classList.remove('hidden');
+        controls.unlock();
+    } else {
+        pauseOverlay.classList.add('hidden');
+        controls.lock();
+    }
+}
+
+document.getElementById('resume-btn').addEventListener('click', togglePause);
+
+controls.addEventListener('unlock', () => {
+    if (gameState === 'PLAYING' && !isPaused && !document.getElementById('shop-overlay').classList.contains('hidden') === false) {
+        // Se o jogador pressionar ESC sem ser pelo shop ou menu, pausamos
+        if (gameState === 'PLAYING') {
+            isPaused = true;
+            document.getElementById('pause-overlay').classList.remove('hidden');
+        }
+    }
+});
+
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Escape') {
+        togglePause();
+    }
+});
+
 console.log("Iniciando Arena...");
 try {
     generateMap();
     checkGameState();
 
     // Inicializar o primeiro bot (SOMENTE UM NA FASE 1)
-    bots.forEach(b => scene.remove(b.mesh));
+    bots.forEach(b => {
+        scene.remove(b.mesh);
+        const wrapper = document.getElementById(`bar-wrapper-${b.id}`);
+        if (wrapper) wrapper.remove();
+    });
+    document.getElementById('bots-health-container').innerHTML = '';
     bots = [];
     const bot1 = new HumanoidBot();
     bots.push(bot1);
