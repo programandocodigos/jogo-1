@@ -12,68 +12,110 @@ const STATS = {
     BOT: { HP: 100, DAMAGE: 10, SPEED: 0.07, ACCURACY: 0.75, MAG_SIZE: 12, RELOAD_TIME: 2000, MAX_RANGE: 40 }
 };
 
-// --- AUDIO SYSTEM (Procedural Sounds) ---
+// --- AUDIO SYSTEM (Procedural Sounds V2.0) ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-// Pré-gerar buffer de ruído branco para explosões/tiros
+// 1. Distortion Curve (Para dar textura metálica/explosiva)
+function makeDistortionCurve(amount) {
+    const k = typeof amount === 'number' ? amount : 50;
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < n_samples; ++i) {
+        const x = i * 2 / n_samples - 1;
+        curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+}
+const distortionCurve = makeDistortionCurve(400);
+
+// 2. Compressor Principal (Dá o "punch" e cola os sons)
+const mainCompressor = audioCtx.createDynamicsCompressor();
+mainCompressor.threshold.setValueAtTime(-24, audioCtx.currentTime);
+mainCompressor.knee.setValueAtTime(30, audioCtx.currentTime);
+mainCompressor.ratio.setValueAtTime(12, audioCtx.currentTime);
+mainCompressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
+mainCompressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+mainCompressor.connect(audioCtx.destination);
+
+// 3. Noise Buffer
 const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
-const output = noiseBuffer.getChannelData(0);
-for (let i = 0; i < noiseBuffer.length; i++) output[i] = Math.random() * 2 - 1;
+const noiseOutput = noiseBuffer.getChannelData(0);
+for (let i = 0; i < noiseBuffer.length; i++) noiseOutput[i] = Math.random() * 2 - 1;
 
 function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
     if (type === 'SHOOT') {
         const weapon = currentWeapon || 'PISTOL';
+        const now = audioCtx.currentTime;
 
-        // Camada 1: O "Impacto" (Grave/Punch)
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        // Cadeia: Source -> Filter -> Distortion -> Gain -> Compressor
+        const gainNode = audioCtx.createGain();
+        const distNode = audioCtx.createWaveShaper();
+        const filterNode = audioCtx.createBiquadFilter();
 
-        // Camada 2: O "Ruído" (Clique mecânico e explosão)
+        distNode.curve = distortionCurve;
+        distNode.oversampling = '4x';
+
+        filterNode.connect(distNode);
+        distNode.connect(gainNode);
+        gainNode.connect(mainCompressor);
+
+        // Camada 1: Explosão (Ruído filtrado)
         const noise = audioCtx.createBufferSource();
         noise.buffer = noiseBuffer;
-        const noiseGain = audioCtx.createGain();
-        noise.connect(noiseGain);
-        noiseGain.connect(audioCtx.destination);
+        const noiseFilter = audioCtx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noise.connect(noiseFilter);
+        noiseFilter.connect(distNode);
+
+        // Camada 2: O "Corpo" (Oscilador)
+        const osc = audioCtx.createOscillator();
+        osc.connect(filterNode);
 
         if (weapon === 'SHOTGUN') {
-            // Som gordo e explosivo
-            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            filterNode.type = 'lowpass';
+            filterNode.frequency.setValueAtTime(1000, now);
+            osc.frequency.setValueAtTime(100, now);
+            osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.3);
 
-            noiseGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-            noise.start(); noise.stop(audioCtx.currentTime + 0.3);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            noiseFilter.frequency.setValueAtTime(2000, now);
+            noiseFilter.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+
+            gainNode.gain.setValueAtTime(0.8, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+            osc.start(now); osc.stop(now + 0.4);
+            noise.start(now); noise.stop(now + 0.4);
         } else if (weapon === 'RIFLE') {
-            // Som rápido e metálico
+            filterNode.type = 'bandpass';
+            filterNode.frequency.setValueAtTime(800, now);
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.12);
 
-            noiseGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-            noise.start(); noise.stop(audioCtx.currentTime + 0.1);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            noiseFilter.frequency.setValueAtTime(4000, now);
+
+            gainNode.gain.setValueAtTime(0.4, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+            osc.start(now); osc.stop(now + 0.15);
+            noise.start(now); noise.stop(now + 0.15);
         } else {
-            // Pistola Padrão
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            // PISTOL
+            filterNode.type = 'lowpass';
+            filterNode.frequency.setValueAtTime(1500, now);
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.15);
 
-            noiseGain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-            noise.start(); noise.stop(audioCtx.currentTime + 0.15);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            noiseFilter.frequency.setValueAtTime(3000, now);
+
+            gainNode.gain.setValueAtTime(0.5, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+            osc.start(now); osc.stop(now + 0.2);
+            noise.start(now); noise.stop(now + 0.2);
         }
     } else if (type === 'STEP') {
         const osc = audioCtx.createOscillator();
