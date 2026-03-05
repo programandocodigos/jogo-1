@@ -595,6 +595,9 @@ class HumanoidBot {
 } // <--- FECHAMENTO DA CLASSE HUMANOIDBOT
 const bot = null; // Removido bot global solto
 let isPaused = false;
+let cameraRecoilX = 0; // Para recuperar a rotação vertical
+let cameraRecoilZ = 0; // Para recuperar a "torção" (roll)
+let cameraPunchY = 0; // Para o shake vertical suave
 
 // --- GAMEPLAY CORE ---
 function checkGameState() {
@@ -649,13 +652,22 @@ function handleShoot() {
     scene.add(flash);
     setTimeout(() => scene.remove(flash), 40);
 
-    // Efeito de "Soco" na Câmera (Shake & Kickback)
-    const shake = currentWeapon === 'SHOTGUN' ? 0.05 : 0.02;
+    // Efeito de "Soco" na Câmera (Recuo & Torção)
+    const shake = currentWeapon === 'SHOTGUN' ? 0.08 : 0.025;
+    const tilt = (Math.random() - 0.5) * (shake * 0.8); // Torção lateral aleatória
+
+    camera.rotation.x += (shake * 0.4);
+    camera.rotation.z += tilt;
+
+    // Guardar valores para o loop desfazer suavemente
+    cameraRecoilX += (shake * 0.4);
+    cameraRecoilZ += tilt;
+
+    // Soco rápido na posição
     camera.position.y += shake;
-    camera.rotation.x += (shake * 0.5); // Adiciona um pouco de "pulo" na mira
     setTimeout(() => {
         camera.position.y -= shake;
-    }, 30);
+    }, 40);
 
     let hitSomething = false;
     const pellets = currentWeapon === 'SHOTGUN' ? 6 : 1;
@@ -1033,6 +1045,22 @@ function loop() {
         }
 
         weaponProxy.position.z += (-0.4 - weaponProxy.position.z) * 0.1;
+
+        // --- RECUPERAÇÃO DE RECUO DA CÂMERA (AUTO-CENTERING) ---
+        if (Math.abs(cameraRecoilX) > 0.0001) {
+            const step = cameraRecoilX * 0.15; // Velocidade de retorno
+            camera.rotation.x -= step;
+            cameraRecoilX -= step;
+        }
+        if (Math.abs(cameraRecoilZ) > 0.0001) {
+            const step = cameraRecoilZ * 0.15;
+            camera.rotation.z -= step;
+            cameraRecoilZ -= step;
+        } else {
+            camera.rotation.z = 0;
+            cameraRecoilZ = 0;
+        }
+
         renderer.render(scene, camera);
     } else if (gameState === 'START') {
         renderer.render(scene, camera);
