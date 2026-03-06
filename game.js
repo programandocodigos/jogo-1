@@ -2,34 +2,34 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
 /**
- * BOX FIGHT 3D - ESTABILIDADE MÁXIMA
- * Correção: Movimento, Colisão, Grama e Materiais
+ * BOX FIGHT 3D - VERSÃO ESTÁVEL
+ * Foco: Movimentação, Grama e Visibilidade
  */
 
 const STATS = {
-    PLAYER: { HP: 100, DAMAGE: 20, SPEED: 0.16, MAG_SIZE: 20, TOTAL_RESERVE: 60 },
-    BOT: { HP: 100, DAMAGE: 10, SPEED: 0.06, ACCURACY: 0.70, MAG_SIZE: 12, RELOAD_TIME: 2000 }
+    PLAYER: { HP: 100, DAMAGE: 25, SPEED: 0.16, MAG_SIZE: 20, TOTAL_RESERVE: 60 },
+    BOT: { HP: 100, DAMAGE: 10, SPEED: 0.06, ACCURACY: 0.70, MAG_SIZE: 12 }
 };
 
-// --- AUDIO ---
+// --- SISTEMA DE ÁUDIO ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const g = audioCtx.createGain(), o = audioCtx.createOscillator();
     o.connect(g); g.connect(audioCtx.destination);
     if (type === 'SHOOT') {
-        o.frequency.setValueAtTime(200, audioCtx.currentTime);
+        o.frequency.setValueAtTime(220, audioCtx.currentTime);
         g.gain.setValueAtTime(0.1, audioCtx.currentTime);
         o.start(); o.stop(audioCtx.currentTime + 0.1);
     } else if (type === 'HEAL') {
-        o.frequency.setValueAtTime(500, audioCtx.currentTime);
-        o.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.2);
+        o.frequency.setValueAtTime(600, audioCtx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
         g.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        o.start(); o.stop(audioCtx.currentTime + 0.2);
+        o.start(); o.stop(audioCtx.currentTime + 0.3);
     }
 }
 
-// --- STATE ---
+// --- ESTADO DO JOGO ---
 let gameState = 'START';
 let currentPhase = 1;
 let coins = 0;
@@ -40,18 +40,17 @@ let reserveAmmo = 60;
 let isMouseDown = false;
 let isReloading = false;
 let lastShotTime = 0;
-let lastDamageTime = 0;
 let bots = [];
-let obstacles = [];
 let obstacleBoxes = [];
+let obstacles = [];
 let grassItems = [];
 let drops = [];
 const keys = {};
 
-// --- SCENE ---
+// --- CENA ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050508);
-scene.fog = new THREE.FogExp2(0x050508, 0.02);
+scene.background = new THREE.Color(0x050510);
+scene.fog = new THREE.FogExp2(0x050510, 0.015);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const recoilGroup = new THREE.Group();
@@ -65,21 +64,21 @@ document.getElementById('game-container').appendChild(renderer.domElement);
 
 const controls = new PointerLockControls(camera, document.body);
 
-// Lighting - Ajustado para visibilidade
-const amb = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(amb);
+// Luzes (Essencial para não ficar tudo preto)
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-sun.position.set(10, 20, 10);
+sun.position.set(20, 40, 20);
 scene.add(sun);
 
 // Arma
 const weaponProxy = new THREE.Group();
-const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.5), new THREE.MeshPhongMaterial({ color: 0x222222 }));
-barrel.position.z = -0.25;
-const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.1), new THREE.MeshPhongMaterial({ color: 0x111111 }));
+const gunMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), gunMat);
+barrel.position.z = -0.3;
+const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.1), gunMat);
 grip.position.set(0, -0.15, -0.1);
 weaponProxy.add(barrel, grip);
-weaponProxy.position.set(0.3, -0.2, -0.4);
+weaponProxy.position.set(0.35, -0.25, -0.4);
 recoilGroup.add(weaponProxy);
 
 // --- MAPA ---
@@ -88,124 +87,116 @@ function generateMap() {
     grassItems.forEach(g => scene.remove(g)); grassItems = [];
     drops.forEach(d => scene.remove(d.mesh)); drops = [];
 
-    // Chão Verde Musgo
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshPhongMaterial({ color: 0x122212 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshPhongMaterial({ color: 0x152b15 }));
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
-    // Obstáculos Planos (Varetas de Grama)
-    const grassGeo = new THREE.BoxGeometry(0.05, 0.5, 0.05), grassMat = new THREE.MeshPhongMaterial({ color: 0x224422 });
-    for (let i = 0; i < 500; i++) {
+    // Grama
+    const grassGeo = new THREE.BoxGeometry(0.05, 0.4, 0.05), grassMat = new THREE.MeshPhongMaterial({ color: 0x1a441a });
+    for (let i = 0; i < 400; i++) {
         const g = new THREE.Mesh(grassGeo, grassMat);
-        g.position.set((Math.random() - 0.5) * 110, 0.25, (Math.random() - 0.5) * 110);
+        g.position.set((Math.random() - 0.5) * 110, 0.2, (Math.random() - 0.5) * 110);
         scene.add(g); grassItems.push(g);
     }
 
     const addBox = (w, h, d, x, z) => {
-        if (Math.sqrt(x * x + (z - 12) * (z - 12)) < 8) return;
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshPhongMaterial({ color: 0x333344 }));
-        m.position.set(x, h / 2, z); scene.add(m); obstacles.push(m);
-        obstacleBoxes.push(new THREE.Box3().setFromObject(m));
+        if (Math.sqrt(x * x + (z - 12) * (z - 12)) < 7) return;
+        const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshPhongMaterial({ color: 0x333344 }));
+        box.position.set(x, h / 2, z); scene.add(box);
+        obstacles.push(box); obstacleBoxes.push(new THREE.Box3().setFromObject(box));
     };
-
-    for (let i = 0; i < 15; i++) addBox(5, 4, 1, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
+    for (let i = 0; i < 15; i++) addBox(4, 3, 4, (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 90);
 }
 
 // --- BOT ---
 class HumanoidBot {
     constructor(isBoss = false) {
         this.isBoss = isBoss; this.id = Math.random().toString(36).substr(2, 9);
-        this.maxHp = isBoss ? 1000 : 100; this.hp = this.maxHp;
+        this.maxHp = isBoss ? 1000 : (currentPhase === 2 ? 150 : 100); this.hp = this.maxHp;
         this.mesh = new THREE.Group();
-        const sm = new THREE.MeshPhongMaterial({ color: 0xd2b48c }), cm = new THREE.MeshPhongMaterial({ color: 0x111111 });
-
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), cm); body.position.y = 1.3;
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), sm); head.position.y = 1.85;
-        const lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), cm); lLeg.position.set(-0.15, 0.4, 0);
-        const rLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), cm); rLeg.position.set(0.15, 0.4, 0);
-
+        const skin = new THREE.MeshPhongMaterial({ color: 0xd2b48c }), clothes = new THREE.MeshPhongMaterial({ color: currentPhase === 2 ? 0xff0000 : 0x111111 });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), clothes); body.position.y = 1.3;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), skin); head.position.y = 1.85;
+        const lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), clothes); lLeg.position.set(-0.15, 0.4, 0);
+        const rLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), clothes); rLeg.position.set(0.15, 0.4, 0);
         this.mesh.add(body, head, lLeg, rLeg);
         this.rArm = new THREE.Group();
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), sm); arm.position.y = -0.3;
-        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.4), new THREE.MeshPhongMaterial({ color: 0x0 }));
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), skin); arm.position.y = -0.3;
+        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.45), new THREE.MeshPhongMaterial({ color: 0 }));
         gun.position.set(0, -0.6, 0.2); this.rArm.add(arm, gun);
-        this.rArm.position.set(0.35, 1.6, 0); this.mesh.add(this.rArm);
-
+        this.rArm.position.set(0.35, 1.7, 0); this.mesh.add(this.rArm);
         scene.add(this.mesh); this.reset();
     }
     reset() {
-        this.mesh.position.set((Math.random() - 0.5) * 40, 0, (Math.random() - 0.5) * 40 - 20);
         this.mesh.visible = true; this.hp = this.maxHp;
+        this.mesh.position.set((Math.random() - 0.5) * 40, 0, (Math.random() - 0.5) * 40 - 20);
         if (this.isBoss) this.mesh.scale.set(5, 5, 5);
-        if (!document.getElementById(`bar-wrapper-${this.id}`)) this.createHB();
+        const hb = document.getElementById('bots-health-container');
+        if (!document.getElementById(`bar-${this.id}`)) {
+            const wrap = document.createElement('div'); wrap.id = `bar-${this.id}`;
+            wrap.innerHTML = `<div class="health-bar bot-health"><div id="fill-${this.id}" class="health-fill" style="width:100%"></div></div>`;
+            hb.appendChild(wrap);
+        }
         this.updateUI();
-    }
-    createHB() {
-        const c = document.getElementById('bots-health-container'); if (!c) return;
-        const d = document.createElement('div'); d.id = `bar-wrapper-${this.id}`;
-        d.innerHTML = `<div class="health-bar bot-health"><div id="fill-${this.id}" class="health-fill" style="width:100%"></div></div>`;
-        c.appendChild(d);
     }
     updateUI() {
         const f = document.getElementById(`fill-${this.id}`); if (f) f.style.width = (this.hp / this.maxHp) * 100 + '%';
     }
     update() {
         if (this.hp <= 0 || gameState !== 'PLAYING') { this.mesh.visible = false; return; }
-        const d = this.mesh.position.distanceTo(camera.position);
+        const dist = this.mesh.position.distanceTo(camera.position);
         this.mesh.lookAt(camera.position.x, 0, camera.position.z);
-        if (d > 8) this.mesh.position.addScaledVector(new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize(), STATS.BOT.SPEED);
-        if (Date.now() - (this.lastShot || 0) > 1500) this.shoot();
+        if (dist > 8) this.mesh.position.addScaledVector(new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize(), STATS.BOT.SPEED);
+        if (Date.now() - (this.lastShot || 0) > (currentPhase >= 2 ? 800 : 1200)) this.shoot();
     }
     shoot() {
         this.lastShot = Date.now();
-        const hit = Math.random() < 0.6;
-        if (hit) { playerHp -= 10; lastDamageTime = Date.now(); checkGameState(); }
+        if (Math.random() < 0.6) { playerHp -= 10; checkGameState(); }
     }
     die() {
-        this.mesh.visible = false; const w = document.getElementById(`bar-wrapper-${this.id}`); if (w) w.remove();
-        if (Math.random() < 0.5) {
-            const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshPhongMaterial({ color: 0x00ff00 }));
-            m.position.copy(this.mesh.position); scene.add(m); drops.push({ mesh: m, type: 'MED' });
+        this.mesh.visible = false; const w = document.getElementById(`bar-${this.id}`); if (w) w.remove();
+        if (Math.random() < 0.4) {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshPhongMaterial({ color: 0x22c55e }));
+            m.position.copy(this.mesh.position); scene.add(m); drops.push({ mesh: m, type: 'MEDKIT' });
         }
         checkGameState();
     }
 }
 
-// --- LOGICA ---
+// --- JOGABILIDADE ---
 function checkGameState() {
-    const f = document.getElementById('player-health-fill'); if (f) f.style.width = Math.max(0, playerHp) + '%';
+    const pf = document.getElementById('player-health-fill'); if (pf) pf.style.width = Math.max(0, playerHp) + '%';
     document.getElementById('ammo-count').innerText = currentMag;
     document.getElementById('total-ammo').innerText = reserveAmmo;
     document.getElementById('coin-count').innerText = coins;
     document.getElementById('phase-display').innerText = `FASE ${currentPhase}`;
     bots.forEach(b => b.updateUI());
-    if (playerHp <= 0 && gameState === 'PLAYING') { gameState = 'GAMEOVER'; document.getElementById('game-over-overlay').classList.remove('hidden'); controls.unlock(); }
-    if (bots.length > 0 && bots.every(b => b.hp <= 0) && gameState === 'PLAYING') { gameState = 'VICTORY'; coins += 50; document.getElementById('victory-overlay').classList.remove('hidden'); controls.unlock(); }
+    if (playerHp <= 0 && gameState === 'PLAYING') {
+        gameState = 'GAMEOVER'; document.getElementById('game-over-overlay').classList.remove('hidden'); controls.unlock();
+    }
+    if (bots.length > 0 && bots.every(b => b.hp <= 0) && gameState === 'PLAYING') {
+        gameState = 'VICTORY'; coins += 50; document.getElementById('victory-overlay').classList.remove('hidden'); controls.unlock();
+    }
 }
 
 function handleShoot() {
     if (isReloading || gameState !== 'PLAYING' || currentMag <= 0) return;
     if (Date.now() - lastShotTime < (currentWeapon === 'RIFLE' ? 100 : 400)) return;
     lastShotTime = Date.now(); currentMag--; playSound('SHOOT');
-
-    // Recoil Visual
-    recoilGroup.rotation.x += 0.05;
-    weaponProxy.position.z += 0.1;
-
+    recoilGroup.rotation.x += 0.04; weaponProxy.position.z += 0.1;
     const r = new THREE.Raycaster(); r.set(camera.position, new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion));
-    let target = null, dist = Infinity;
-    bots.forEach(b => { if (b.hp > 0) { const h = r.intersectObject(b.mesh, true); if (h.length > 0 && h[0].distance < dist) { dist = h[0].distance; target = b; } } });
-    if (target) { target.hp -= 20; if (target.hp <= 0) target.die(); }
-
+    let hitBot = null, bestD = Infinity;
+    bots.forEach(b => { if (b.hp > 0) { const h = r.intersectObject(b.mesh, true); if (h.length > 0 && h[0].distance < bestD) { bestD = h[0].distance; hitBot = b; } } });
+    if (hitBot) { hitBot.hp -= 20; if (hitBot.hp <= 0) hitBot.die(); }
     checkGameState(); if (currentMag === 0) reload();
 }
 
 function reload() {
     if (isReloading || reserveAmmo <= 0) return; isReloading = true;
     setTimeout(() => {
-        const take = Math.min(20 - currentMag, reserveAmmo);
-        currentMag += take; reserveAmmo -= take; isReloading = false; checkGameState();
-    }, 1000);
+        const take = Math.min(20 - currentMag, reserveAmmo); currentMag += take; reserveAmmo -= take;
+        isReloading = false; checkGameState();
+    }, 1200);
 }
 
 function move() {
@@ -215,9 +206,9 @@ function move() {
     if (keys['KeyW']) mv.add(f); if (keys['KeyS']) mv.sub(f); if (keys['KeyA']) mv.sub(r); if (keys['KeyD']) mv.add(r);
     if (mv.length() > 0) {
         mv.normalize().multiplyScalar(STATS.PLAYER.SPEED);
-        const nextPos = camera.position.clone().add(mv);
-        const pBox = new THREE.Box3().setFromCenterAndSize(nextPos, new THREE.Vector3(0.6, 2, 0.6));
-        if (!obstacleBoxes.some(b => pBox.intersectsBox(b))) camera.position.copy(nextPos);
+        const next = camera.position.clone().add(mv);
+        const pBox = new THREE.Box3().setFromCenterAndSize(next, new THREE.Vector3(0.7, 1.8, 0.7));
+        if (!obstacleBoxes.some(b => pBox.intersectsBox(b))) camera.position.copy(next);
     }
     drops.forEach((d, i) => { if (camera.position.distanceTo(d.mesh.position) < 1.5) { playerHp = Math.min(100, playerHp + 40); scene.remove(d.mesh); drops.splice(i, 1); playSound('HEAL'); checkGameState(); } });
 }
@@ -227,9 +218,7 @@ function loop() {
     if (gameState === 'PLAYING') {
         move(); bots.forEach(b => b.update());
         if (isMouseDown && currentWeapon !== 'PISTOL') handleShoot();
-        // Recuperação de Recoil
-        recoilGroup.rotation.x *= 0.9;
-        weaponProxy.position.z *= 0.9;
+        recoilGroup.rotation.x *= 0.9; weaponProxy.position.z *= 0.85;
     }
     renderer.render(scene, camera);
 }
@@ -242,18 +231,20 @@ window.addEventListener('mouseup', () => isMouseDown = false);
 
 document.getElementById('start-btn').addEventListener('click', () => {
     document.getElementById('start-overlay').classList.add('hidden');
-    gameState = 'PLAYING'; playerHp = 100; currentMag = 20;
+    gameState = 'PLAYING'; playerHp = 100;
     camera.position.set(0, 1.7, 12); controls.lock();
 });
 
 document.getElementById('retry-btn').addEventListener('click', () => location.reload());
 document.getElementById('next-phase-btn').addEventListener('click', () => {
-    currentPhase++; bots.forEach(b => { if (b.mesh) scene.remove(b.mesh); });
+    currentPhase++; document.getElementById('victory-overlay').classList.add('hidden');
+    bots.forEach(b => { if (b.mesh) scene.remove(b.mesh); const w = document.getElementById(`bar-${b.id}`); if (w) w.remove(); });
     bots = (currentPhase === 2) ? [new HumanoidBot(), new HumanoidBot()] : [new HumanoidBot(true)];
-    document.getElementById('victory-overlay').classList.add('hidden');
-    gameState = 'PLAYING'; playerHp = 100; camera.position.set(0, 1.7, 12); controls.lock();
+    playerHp = 100; camera.position.set(0, 1.7, 12); controls.lock();
+    gameState = 'PLAYING';
 });
 
-// Start
-generateMap(); bots = [new HumanoidBot()]; loop();
-console.log("Arena Pronta.");
+// --- INÍCIO ---
+generateMap();
+bots = [new HumanoidBot()];
+loop();
