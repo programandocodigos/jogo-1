@@ -59,7 +59,6 @@ body {
     transform: translate(-50%, -50%);
 }
 
-/* Glass HUD */
 #hud {
     position: absolute;
     top: 20px;
@@ -68,7 +67,7 @@ body {
     padding: 15px 30px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     background: var(--glass);
     backdrop-filter: blur(15px);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -76,64 +75,34 @@ body {
     z-index: 50;
 }
 
-#game-title {
-    font-weight: 900;
-    letter-spacing: 2px;
-    color: var(--primary);
-}
-
-.stats {
-    display: flex;
-    gap: 40px;
-    align-items: center;
-}
+#left-hud { display: flex; flex-direction: column; gap: 10px; }
+#right-hud { display: flex; flex-direction: column; align-items: flex-end; }
 
 .stat-item {
     display: flex;
     flex-direction: column;
     gap: 5px;
     font-weight: 700;
-    font-size: 0.8rem;
 }
 
 .health-bar {
-    width: 150px;
-    height: 10px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 5px;
+    width: 250px;
+    height: 15px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .health-fill {
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, #ff0000, #ff5555);
-    transition: width 0.3s ease;
+    background: #00ff00;
+    transition: width 0.2s ease;
 }
 
-.bot-health .health-fill {
-    background: linear-gradient(90deg, var(--secondary), #8800ff);
-}
+.bot-hb { width: 300px; height: 25px; }
 
-.ammo-hud {
-    font-size: 1.5rem;
-    color: var(--primary);
-    background: rgba(0, 0, 0, 0.4);
-    padding: 5px 15px;
-    border-radius: 8px;
-    border: 1px solid var(--primary);
-}
-
-.coin-hud {
-    font-size: 1.5rem;
-    color: #ffd700;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-    background: rgba(0, 0, 0, 0.4);
-    padding: 5px 15px;
-    border-radius: 8px;
-    border: 1px solid #ffd700;
-}
 
 /* Overlays */
 .overlay {
