@@ -10,7 +10,7 @@ console.log("BOX FIGHT 3D - VERSÃO 2.1 (FIX ESTABILIDADE) CARREGADA");
 // --- CONFIGURAÇÕES ---
 const STATS = {
     PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG: 10, TOTAL: 30, RELOAD: 2500, RADIUS: 0.8 },
-    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.1, ACCURACY_BASE: 0.6, ACCURACY_MOVING: 0.4, REACTION: 500, STOP_DIST: 12, STRAFE_SPEED: 0.06, RADIUS: 0.7 }
+    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.1, ACCURACY: 0.55, SPREAD: 0.035, REACTION: 500, STOP_DIST: 12, STRAFE_SPEED: 0.06, RADIUS: 0.7 }
 };
 
 // --- ESTADO GLOBAL ---
@@ -259,17 +259,30 @@ class ArenaBot {
                 scene.remove(flashMesh);
             }, 50);
 
-            // Cálulo de Precisão Dinâmica (Inaccuracy Offset)
-            const baseAcc = (isMoving || isJumping) ? STATS.BOT.ACCURACY_MOVING : STATS.BOT.ACCURACY_BASE;
-            const playerVelFactor = isMoving ? 0.3 : 0;
-            const hitChance = baseAcc - playerVelFactor;
+            // Cálulo de Precisão Dinâmica (Spread de 2 graus)
+            const spread = STATS.BOT.SPREAD;
+            const spray = new THREE.Vector3(
+                (Math.random() - 0.5) * spread,
+                (Math.random() - 0.5) * spread,
+                (Math.random() - 0.5) * spread
+            );
+            const shotDir = toPlayer.clone().add(spray).normalize();
 
-            if (Math.random() < hitChance) {
-                playerHp -= STATS.BOT.DAMAGE;
-                document.body.style.boxShadow = "inset 0 0 50px #ff0000";
-                setTimeout(() => document.body.style.boxShadow = "none", 100);
-                updateUI();
-                checkGameState();
+            // Raycast do tiro do bot para colisão com obstáculos
+            const botShotRay = new THREE.Raycaster(eyePos, shotDir);
+            const botIntersects = botShotRay.intersectObjects(solidObjects, true);
+            const botWallDist = botIntersects.length > 0 ? botIntersects[0].distance : Infinity;
+
+            if (dist < botWallDist) {
+                // Cálculo de acerto real
+                const movePenalty = (isMoving || isJumping) ? 0.2 : 0;
+                if (Math.random() < (STATS.BOT.ACCURACY - movePenalty)) {
+                    playerHp -= STATS.BOT.DAMAGE;
+                    document.body.style.boxShadow = "inset 0 0 50px #ff0000";
+                    setTimeout(() => document.body.style.boxShadow = "none", 100);
+                    updateUI();
+                    checkGameState();
+                }
             }
         }
     }
@@ -286,8 +299,18 @@ class ArenaBot {
 
 // --- MECÂNICAS ---
 function handleShoot() {
-    if (gameState !== 'PLAYING' || isReloading || currentMag <= 0) return;
-    currentMag--; updateUI();
+    if (gameState !== 'PLAYING' || isReloading || currentMag <= 0) {
+        if (currentMag <= 0 && reserveAmmo > 0 && !isReloading) handleReload();
+        return;
+    }
+
+    currentMag--;
+    updateUI();
+
+    if (currentMag === 0 && reserveAmmo > 0) {
+        handleReload();
+    }
+
     recoilGroup.rotation.x += 0.15;
     weaponGroup.position.z += 0.05;
 
@@ -305,6 +328,23 @@ function handleShoot() {
             }
         }
     });
+}
+
+function handleReload() {
+    if (isReloading || reserveAmmo <= 0) return;
+    isReloading = true;
+
+    // Feedback visual (arma abaixa um pouco)
+    weaponGroup.position.y -= 0.1;
+
+    setTimeout(() => {
+        const toLoad = Math.min(STATS.PLAYER.MAG - currentMag, reserveAmmo);
+        currentMag += toLoad;
+        reserveAmmo -= toLoad;
+        isReloading = false;
+        weaponGroup.position.y += 0.1;
+        updateUI();
+    }, STATS.PLAYER.RELOAD);
 }
 
 function updateUI() {
@@ -390,6 +430,9 @@ function move() {
 // INICIALIZAÇÃO
 window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
+window.addEventListener('keydown', e => {
+    if (e.code === 'KeyR') handleReload();
+});
 window.addEventListener('mousedown', e => { if (e.button === 0) handleShoot(); });
 
 // Listeners de UI
