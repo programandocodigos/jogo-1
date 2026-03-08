@@ -10,7 +10,7 @@ console.log("BOX FIGHT 3D - VERSÃO 2.1 (FIX ESTABILIDADE) CARREGADA");
 // --- CONFIGURAÇÕES ---
 const STATS = {
     PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG: 10, TOTAL: 30, RELOAD: 2500 },
-    BOT: { HP: 100, DAMAGE: 30, SPEED: 0.08, ACCURACY_ERROR: 0.15, REACTION: 1000, STOP_DIST: 5 }
+    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.09, ACCURACY_BASE: 0.8, ACCURACY_MOVING: 0.6, REACTION: 1000, STOP_DIST: 10, STRAFE_SPEED: 0.05 }
 };
 
 // --- ESTADO GLOBAL ---
@@ -21,6 +21,8 @@ let botHp = 100;
 let currentMag = STATS.PLAYER.MAG;
 let reserveAmmo = STATS.PLAYER.TOTAL - STATS.PLAYER.MAG;
 let isReloading = false;
+let isMoving = false;
+let isJumping = false;
 const keys = {};
 
 let bots = [];
@@ -50,93 +52,134 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x080820, 0.7));
 const sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(20, 50, 10);
 sun.castShadow = true;
+sun.shadow.mapSize.width = 1024;
+sun.shadow.mapSize.height = 1024;
 scene.add(sun);
 
-// --- 1. O MAPA (BOX FIGHT) ---
+// --- 1. O MAPA (LABIRINTO FUNCIONAL) ---
 function generateMap() {
     solidObjects.forEach(o => scene.remove(o));
     solidObjects = []; obstacleBoxes = [];
 
-    // Solo
-    const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(100, 100),
-        new THREE.MeshStandardMaterial({ color: 0x1a401a })
-    );
+    // Solo (Grama)
+    const floorGeo = new THREE.PlaneGeometry(120, 120);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x1a401a });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
+
+    // Adicionar "Grama" visual (pequenos tufos)
+    for (let i = 0; i < 200; i++) {
+        const g = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.2, 0.4),
+            new THREE.MeshBasicMaterial({ color: 0x2d5a27, side: THREE.DoubleSide })
+        );
+        g.position.set((Math.random() - 0.5) * 100, 0.2, (Math.random() - 0.5) * 100);
+        g.rotation.y = Math.random() * Math.PI;
+        scene.add(g);
+    }
 
     const addSolid = (mesh, x, z, y = 0) => {
         mesh.position.set(x, y, z);
         mesh.castShadow = true; mesh.receiveShadow = true;
         scene.add(mesh);
         solidObjects.push(mesh);
-        obstacleBoxes.push(new THREE.Box3().setFromObject(mesh));
+        const box = new THREE.Box3().setFromObject(mesh);
+        obstacleBoxes.push(box);
     };
 
-    // Árvores e Pedras
-    for (let i = 0; i < 15; i++) {
+    // Árvores
+    for (let i = 0; i < 20; i++) {
         const tree = new THREE.Group();
-        const t = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 6), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
-        t.position.y = 3;
-        const l = new THREE.Mesh(new THREE.ConeGeometry(2.5, 5, 8), new THREE.MeshStandardMaterial({ color: 0x0a5d0a }));
-        l.position.y = 7;
-        tree.add(t, l);
-        addSolid(tree, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 5), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
+        trunk.position.y = 2.5;
+        const leaves = new THREE.Mesh(new THREE.ConeGeometry(2.5, 5, 8), new THREE.MeshStandardMaterial({ color: 0x0a5d0a }));
+        leaves.position.y = 6.5;
+        tree.add(trunk, leaves);
+        addSolid(tree, (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 90);
     }
-    for (let i = 0; i < 8; i++) {
-        const s = new THREE.Mesh(new THREE.BoxGeometry(4, 8, 4), new THREE.MeshStandardMaterial({ color: 0x444444 }));
-        addSolid(s, (Math.random() - 0.5) * 70, (Math.random() - 0.5) * 70, 4);
+
+    // Pedras / Obstáculos (Labirinto)
+    for (let i = 0; i < 15; i++) {
+        const stone = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 5 + Math.random() * 5, 4),
+            new THREE.MeshStandardMaterial({ color: 0x555555 })
+        );
+        addSolid(stone, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, 2.5);
     }
 }
 
-// --- 2. JOGADOR: MAGNUM .357 (VIEWMODEL) ---
-const weaponArm = new THREE.Group();
+// --- 2. JOGADOR: MAGNUM .357 (VIEWMODEL FIX) ---
+const weaponGroup = new THREE.Group();
 function createWeapon() {
-    weaponArm.clear();
-    const iron = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.2 });
+    weaponGroup.clear();
+    const iron = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.1 });
     const skin = new THREE.MeshStandardMaterial({ color: 0xd2b48c });
     const wood = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
 
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.8), skin);
-    arm.position.set(0.4, -0.4, -0.3);
-    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.5), iron);
-    barrel.position.set(0.4, -0.28, -0.7);
-    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.15, 8), iron);
-    cyl.rotation.x = Math.PI / 2; cyl.position.set(0.4, -0.28, -0.45);
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.12), wood);
-    grip.position.set(0.4, -0.4, -0.35); grip.rotation.x = 0.3;
+    // Braço
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.2), skin);
+    arm.position.set(0.6, -0.5, -0.5);
+    arm.rotation.y = -0.1;
 
-    weaponArm.add(arm, barrel, cyl, grip);
-    recoilGroup.add(weaponArm);
+    // Magnum .357
+    const gun = new THREE.Group();
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.8), iron);
+    barrel.position.z = -0.6;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.2, 8), iron);
+    body.rotation.x = Math.PI / 2;
+    body.position.z = -0.15;
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.15), wood);
+    grip.position.set(0, -0.2, 0); grip.rotation.x = 0.4;
+
+    gun.add(barrel, body, grip);
+    gun.position.set(0.6, -0.35, -0.8);
+
+    weaponGroup.add(arm, gun);
+    camera.add(weaponGroup); // FIX: Adicionado diretamente à câmera para FPS real
 }
 createWeapon();
 
-// --- 3. BOT HUMANOIDE ---
+// --- 3. BOT HUMANOIDE AVANÇADO ---
 class ArenaBot {
     constructor() {
         this.group = new THREE.Group();
         this.hp = 100;
         this.lastShot = 0;
         this.isFlashing = false;
+        this.strafeDir = 1;
+        this.lastStrafeChange = 0;
 
         const skin = new THREE.MeshStandardMaterial({ color: 0xe0ac69 });
         const clothes = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+        const gunMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
 
+        // Corpo
         this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.35), clothes);
         this.torso.position.y = 1.25;
         this.head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), skin);
         this.head.position.y = 1.9;
-        this.group.add(this.torso, this.head);
 
+        // Membros
         const lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), clothes); lLeg.position.set(-0.18, 0.4, 0);
         const rLeg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), clothes); rLeg.position.set(0.18, 0.4, 0);
-        this.group.add(lLeg, rLeg);
-
         const lArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), skin); lArm.position.set(-0.4, 1.3, 0);
         this.rArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), skin); this.rArm.position.set(0.4, 1.3, 0);
-        this.group.add(lArm, this.rArm);
 
+        // Arma na Mão
+        this.weapon = new THREE.Group();
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.6), gunMat);
+        b.position.z = -0.3;
+        this.weapon.add(b);
+        this.weapon.position.set(0.4, 1.3, -0.2); // Na mão direita
+
+        // Muzzle Flash
+        this.muzzleFlash = new THREE.PointLight(0xffaa00, 0, 3);
+        this.muzzleFlash.position.set(0.4, 1.35, -0.8);
+        scene.add(this.muzzleFlash);
+
+        this.group.add(this.torso, this.head, lLeg, rLeg, lArm, this.rArm, this.weapon);
         scene.add(this.group);
         this.respawn();
     }
@@ -161,19 +204,52 @@ class ArenaBot {
 
     update() {
         if (!this.group.visible || gameState !== 'PLAYING') return;
-        const dist = this.group.position.distanceTo(camera.position);
-        this.group.lookAt(camera.position.x, 0, camera.position.z);
 
-        // Perseguição
-        if (dist > STATS.BOT.STOP_DIST) {
-            const dir = new THREE.Vector3().subVectors(camera.position, this.group.position).normalize();
-            this.group.position.add(new THREE.Vector3(dir.x, 0, dir.z).multiplyScalar(STATS.BOT.SPEED));
+        const dist = this.group.position.distanceTo(camera.position);
+
+        // IA de Movimentação (Strafing e Reposicionamento)
+        const toPlayer = new THREE.Vector3().subVectors(camera.position, this.group.position).normalize();
+        this.group.lookAt(camera.position.x, this.group.position.y, camera.position.z);
+
+        // Checar Visibilidade (Raycast Profissional)
+        const raycaster = new THREE.Raycaster(this.group.position.clone().add(new THREE.Vector3(0, 1.5, 0)), toPlayer);
+        const intersects = raycaster.intersectObjects(solidObjects, true);
+        const isVisible = intersects.length === 0 || intersects[0].distance > dist;
+
+        if (dist > STATS.BOT.STOP_DIST || !isVisible) {
+            // Ir em direção ao jogador ou reposicionar
+            this.group.position.add(new THREE.Vector3(toPlayer.x, 0, toPlayer.z).multiplyScalar(STATS.BOT.SPEED));
         }
 
-        // Ataque (Somente se estiver perto e no tempo de cooldown)
-        if (Date.now() - this.lastShot > 2000) {
+        // Lógica de Strafing (Movimento Lateral)
+        if (Date.now() - this.lastStrafeChange > 1500 + Math.random() * 2000) {
+            this.strafeDir *= -1;
+            this.lastStrafeChange = Date.now();
+        }
+        const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), toPlayer).normalize();
+        this.group.position.add(right.multiplyScalar(this.strafeDir * STATS.BOT.STRAFE_SPEED));
+
+        // Ataque (1 tiro por segundo)
+        if (isVisible && Date.now() - this.lastShot > 1000) {
             this.lastShot = Date.now();
-            if (Math.random() > STATS.BOT.ACCURACY_ERROR) {
+
+            // Muzzle Flash Visual
+            this.muzzleFlash.intensity = 10;
+            const flashPos = this.group.position.clone().add(new THREE.Vector3(0, 1.35, 0)).add(toPlayer.clone().multiplyScalar(0.8));
+            this.muzzleFlash.position.copy(flashPos);
+
+            const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+            flashMesh.position.copy(flashPos);
+            scene.add(flashMesh);
+            setTimeout(() => {
+                this.muzzleFlash.intensity = 0;
+                scene.remove(flashMesh);
+            }, 50);
+
+            // Cálculo de Precisão Dinâmica
+            const currentAccuracy = (isMoving || isJumping) ? STATS.BOT.ACCURACY_MOVING : STATS.BOT.ACCURACY_BASE;
+
+            if (Math.random() < currentAccuracy) {
                 playerHp -= STATS.BOT.DAMAGE;
                 document.body.style.boxShadow = "inset 0 0 50px #ff0000";
                 setTimeout(() => document.body.style.boxShadow = "none", 100);
@@ -189,7 +265,7 @@ function handleShoot() {
     if (gameState !== 'PLAYING' || isReloading || currentMag <= 0) return;
     currentMag--; updateUI();
     recoilGroup.rotation.x += 0.15;
-    weaponArm.position.z += 0.1;
+    weaponGroup.position.z += 0.05;
 
     const ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(0, 0), camera);
@@ -234,7 +310,8 @@ function loop() {
         move();
         bots.forEach(b => b.update());
         recoilGroup.rotation.x *= 0.9;
-        weaponArm.position.z *= 0.85;
+        weaponGroup.position.z *= 0.85;
+        weaponGroup.position.y = Math.sin(Date.now() * 0.005) * 0.01; // Bobbing effect
     }
     renderer.render(scene, camera);
 }
@@ -245,9 +322,29 @@ function move() {
     const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     const r = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
     f.y = 0; r.y = 0; f.normalize(); r.normalize();
-    if (keys['KeyW']) mv.add(f); if (keys['KeyS']) mv.sub(f);
-    if (keys['KeyA']) mv.sub(r); if (keys['KeyD']) mv.add(r);
-    camera.position.add(mv.multiplyScalar(STATS.PLAYER.SPEED));
+
+    isMoving = false;
+    if (keys['KeyW']) { mv.add(f); isMoving = true; }
+    if (keys['KeyS']) { mv.sub(f); isMoving = true; }
+    if (keys['KeyA']) { mv.sub(r); isMoving = true; }
+    if (keys['KeyD']) { mv.add(r); isMoving = true; }
+
+    // Pulo (IA deve errar mais)
+    if (keys['Space'] && !isJumping) {
+        isJumping = true;
+        let v0 = 0.15;
+        const jumpInterval = setInterval(() => {
+            camera.position.y += v0;
+            v0 -= 0.01;
+            if (camera.position.y <= 1.7) {
+                camera.position.y = 1.7;
+                isJumping = false;
+                clearInterval(jumpInterval);
+            }
+        }, 16);
+    }
+
+    camera.position.add(mv.normalize().multiplyScalar(STATS.PLAYER.SPEED));
 }
 
 // INICIALIZAÇÃO
