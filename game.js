@@ -9,8 +9,8 @@ console.log("BOX FIGHT 3D - VERSÃO 2.1 (FIX ESTABILIDADE) CARREGADA");
 
 // --- CONFIGURAÇÕES ---
 const STATS = {
-    PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG: 10, TOTAL: 30, RELOAD: 2500 },
-    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.09, ACCURACY_BASE: 0.8, ACCURACY_MOVING: 0.6, REACTION: 1000, STOP_DIST: 10, STRAFE_SPEED: 0.05 }
+    PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG: 10, TOTAL: 30, RELOAD: 2500, RADIUS: 0.8 },
+    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.1, ACCURACY_BASE: 0.6, ACCURACY_MOVING: 0.4, REACTION: 500, STOP_DIST: 12, STRAFE_SPEED: 0.06, RADIUS: 0.7 }
 };
 
 // --- ESTADO GLOBAL ---
@@ -150,6 +150,8 @@ class ArenaBot {
         this.isFlashing = false;
         this.strafeDir = 1;
         this.lastStrafeChange = 0;
+        this.lastVisibleTime = 0;
+        this.isPlayerVisible = false;
 
         const skin = new THREE.MeshStandardMaterial({ color: 0xe0ac69 });
         const clothes = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
@@ -168,18 +170,18 @@ class ArenaBot {
         this.rArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), skin); this.rArm.position.set(0.4, 1.3, 0);
 
         // Arma na Mão
-        this.weapon = new THREE.Group();
-        const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.6), gunMat);
-        b.position.z = -0.3;
-        this.weapon.add(b);
-        this.weapon.position.set(0.4, 1.3, -0.2); // Na mão direita
+        this.weaponGroup = new THREE.Group();
+        const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.6), gunMat);
+        gunBody.position.z = -0.3;
+        this.weaponGroup.add(gunBody);
+        this.weaponGroup.position.set(0.4, 1.3, -0.2); // Na mão direita
 
         // Muzzle Flash
         this.muzzleFlash = new THREE.PointLight(0xffaa00, 0, 3);
         this.muzzleFlash.position.set(0.4, 1.35, -0.8);
         scene.add(this.muzzleFlash);
 
-        this.group.add(this.torso, this.head, lLeg, rLeg, lArm, this.rArm, this.weapon);
+        this.group.add(this.torso, this.head, lLeg, rLeg, lArm, this.rArm, this.weaponGroup);
         scene.add(this.group);
         this.respawn();
     }
@@ -206,31 +208,42 @@ class ArenaBot {
         if (!this.group.visible || gameState !== 'PLAYING') return;
 
         const dist = this.group.position.distanceTo(camera.position);
-
-        // IA de Movimentação (Strafing e Reposicionamento)
         const toPlayer = new THREE.Vector3().subVectors(camera.position, this.group.position).normalize();
         this.group.lookAt(camera.position.x, this.group.position.y, camera.position.z);
 
-        // Checar Visibilidade (Raycast Profissional)
-        const raycaster = new THREE.Raycaster(this.group.position.clone().add(new THREE.Vector3(0, 1.5, 0)), toPlayer);
+        // Raycast Profissional para Visibilidade e Colisão de Tiro
+        const eyePos = this.group.position.clone().add(new THREE.Vector3(0, 1.7, 0));
+        const raycaster = new THREE.Raycaster(eyePos, toPlayer);
         const intersects = raycaster.intersectObjects(solidObjects, true);
-        const isVisible = intersects.length === 0 || intersects[0].distance > dist;
 
-        if (dist > STATS.BOT.STOP_DIST || !isVisible) {
-            // Ir em direção ao jogador ou reposicionar
-            this.group.position.add(new THREE.Vector3(toPlayer.x, 0, toPlayer.z).multiplyScalar(STATS.BOT.SPEED));
+        const wasVisible = this.isPlayerVisible;
+        this.isPlayerVisible = (intersects.length === 0 || intersects[0].distance > dist);
+
+        if (this.isPlayerVisible && !wasVisible) {
+            this.lastVisibleTime = Date.now(); // Inicia tempo de reação
         }
 
-        // Lógica de Strafing (Movimento Lateral)
+        // IA de Movimentação com "Anti-Ghosting"
+        if (dist > STATS.BOT.STOP_DIST || !this.isPlayerVisible) {
+            const moveVec = new THREE.Vector3(toPlayer.x, 0, toPlayer.z).multiplyScalar(STATS.BOT.SPEED);
+            if (!this.checkCollision(moveVec)) {
+                this.group.position.add(moveVec);
+            }
+        }
+
+        // Strafing (Movimento Lateral) com Colisão
         if (Date.now() - this.lastStrafeChange > 1500 + Math.random() * 2000) {
             this.strafeDir *= -1;
             this.lastStrafeChange = Date.now();
         }
         const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), toPlayer).normalize();
-        this.group.position.add(right.multiplyScalar(this.strafeDir * STATS.BOT.STRAFE_SPEED));
+        const strafeVec = right.multiplyScalar(this.strafeDir * STATS.BOT.STRAFE_SPEED);
+        if (!this.checkCollision(strafeVec)) {
+            this.group.position.add(strafeVec);
+        }
 
-        // Ataque (1 tiro por segundo)
-        if (isVisible && Date.now() - this.lastShot > 1000) {
+        // Lógica de Ataque (1s de cooldown + 0.5s de reação)
+        if (this.isPlayerVisible && (Date.now() - this.lastVisibleTime > STATS.BOT.REACTION) && (Date.now() - this.lastShot > 1000)) {
             this.lastShot = Date.now();
 
             // Muzzle Flash Visual
@@ -246,10 +259,12 @@ class ArenaBot {
                 scene.remove(flashMesh);
             }, 50);
 
-            // Cálculo de Precisão Dinâmica
-            const currentAccuracy = (isMoving || isJumping) ? STATS.BOT.ACCURACY_MOVING : STATS.BOT.ACCURACY_BASE;
+            // Cálulo de Precisão Dinâmica (Inaccuracy Offset)
+            const baseAcc = (isMoving || isJumping) ? STATS.BOT.ACCURACY_MOVING : STATS.BOT.ACCURACY_BASE;
+            const playerVelFactor = isMoving ? 0.3 : 0;
+            const hitChance = baseAcc - playerVelFactor;
 
-            if (Math.random() < currentAccuracy) {
+            if (Math.random() < hitChance) {
                 playerHp -= STATS.BOT.DAMAGE;
                 document.body.style.boxShadow = "inset 0 0 50px #ff0000";
                 setTimeout(() => document.body.style.boxShadow = "none", 100);
@@ -257,6 +272,15 @@ class ArenaBot {
                 checkGameState();
             }
         }
+    }
+
+    checkCollision(vec) {
+        const nextPos = this.group.position.clone().add(vec);
+        const botBox = new THREE.Box3().setFromCenterAndSize(
+            nextPos.clone().add(new THREE.Vector3(0, 1, 0)),
+            new THREE.Vector3(1, 2, 1)
+        );
+        return obstacleBoxes.some(box => box.intersectsBox(botBox));
     }
 }
 
@@ -275,7 +299,10 @@ function handleShoot() {
     bots.forEach(b => {
         if (b.group.visible) {
             const hit = ray.intersectObject(b.group, true);
-            if (hit.length > 0 && hit[0].distance < wallDist) b.onHit(STATS.PLAYER.DAMAGE);
+            // Bloqueio de Tiro: Se houver obstáculo entre o atirador e o alvo, o tiro não conta
+            if (hit.length > 0 && hit[0].distance < wallDist) {
+                b.onHit(STATS.PLAYER.DAMAGE);
+            }
         }
     });
 }
@@ -329,7 +356,22 @@ function move() {
     if (keys['KeyA']) { mv.sub(r); isMoving = true; }
     if (keys['KeyD']) { mv.add(r); isMoving = true; }
 
-    // Pulo (IA deve errar mais)
+    if (isMoving) {
+        const moveVec = mv.normalize().multiplyScalar(STATS.PLAYER.SPEED);
+        // Colisão Player (Box Checking)
+        const nextPos = camera.position.clone().add(moveVec);
+        const playerBox = new THREE.Box3().setFromCenterAndSize(
+            nextPos,
+            new THREE.Vector3(1, 2, 1)
+        );
+
+        const collision = obstacleBoxes.some(box => box.intersectsBox(playerBox));
+        if (!collision) {
+            camera.position.add(moveVec);
+        }
+    }
+
+    // Pulo
     if (keys['Space'] && !isJumping) {
         isJumping = true;
         let v0 = 0.15;
@@ -343,8 +385,6 @@ function move() {
             }
         }, 16);
     }
-
-    camera.position.add(mv.normalize().multiplyScalar(STATS.PLAYER.SPEED));
 }
 
 // INICIALIZAÇÃO
@@ -352,20 +392,33 @@ window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener('mousedown', e => { if (e.button === 0) handleShoot(); });
 
-document.getElementById('start-btn').addEventListener('click', () => {
-    // RESET TOTAL NO START
+// Listeners de UI
+document.getElementById('start-btn').addEventListener('click', () => resetGame());
+document.getElementById('retry-btn').addEventListener('click', () => resetGame());
+document.getElementById('reset-btn').addEventListener('click', () => resetGame());
+
+function resetGame() {
+    // RESET TOTAL
     playerHp = 100; botHp = 100;
     currentMag = STATS.PLAYER.MAG;
     reserveAmmo = STATS.PLAYER.TOTAL - STATS.PLAYER.MAG;
 
     document.getElementById('start-overlay').classList.add('hidden');
+    document.getElementById('game-over-overlay').classList.add('hidden');
+    document.getElementById('victory-overlay').classList.add('hidden');
+
     gameState = 'PLAYING';
     camera.position.set(0, 1.7, 12);
+
+    // Regenerar Mapa
+    generateMap();
+
+    // Reset Bots
+    bots.forEach(b => b.respawn());
+
     controls.lock();
     updateUI();
-});
-
-document.getElementById('retry-btn').addEventListener('click', () => location.reload());
+}
 
 generateMap();
 bots = [new ArenaBot()];
