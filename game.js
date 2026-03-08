@@ -2,18 +2,19 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
 /**
- * BOX FIGHT 3D - VERSÃO DEFINITIVA (RECONSTRUÇÃO TOTAL)
- * Atendendo todos os requisitos do Ultimato Técnico.
+ * BOX FIGHT 3D - FIX TOTAL DE EMERGÊNCIA
+ * Resolvendo travamento de script e restaurando cenário/IA.
  */
 
 // --- CONFIGURAÇÕES DO MOTOR ---
 const STATS = {
-    PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG: 10, TOTAL: 30, RELOAD: 2500 },
+    PLAYER: { HP: 100, DAMAGE: 35, SPEED: 0.16, MAG: 10, TOTAL: 30, RELOAD: 2500 },
     BOT: { HP: 100, DAMAGE: 40, SPEED: 0.08, ACCURACY_ERROR: 0.15, STOP_DIST: 6 }
 };
 
-// --- ESTADO GLOBAL ---
+// --- ESTADO GLOBAL (CORRIGIDO) ---
 let gameState = 'START';
+let currentPhase = 1; // ADICIONADO: Variável que faltava e travava o jogo
 let playerHp = 100;
 let botHp = 100;
 let currentMag = STATS.PLAYER.MAG;
@@ -22,8 +23,8 @@ let isReloading = false;
 let lastShotTime = 0;
 
 let bots = [];
-let obstacles = []; // Para renderizar
-let obstacleBoxes = []; // Para colisões físicas (BoundingBoxes)
+let obstacles = [];
+let obstacleBoxes = [];
 const keys = {};
 
 // --- SETUP SCENE ---
@@ -40,7 +41,14 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
-document.getElementById('game-container').appendChild(renderer.domElement);
+
+// Garantir que o container existe antes de anexar
+const container = document.getElementById('game-container');
+if (container) {
+    container.appendChild(renderer.domElement);
+} else {
+    console.error("ERRO CRÍTICO: 'game-container' não encontrado!");
+}
 
 const controls = new PointerLockControls(camera, document.body);
 
@@ -73,12 +81,11 @@ function generateMap() {
         mesh.castShadow = true; mesh.receiveShadow = true;
         scene.add(mesh);
         obstacles.push(mesh);
-        // BoundingBox real para bloqueio de física e tiros
         const box = new THREE.Box3().setFromObject(mesh);
         obstacleBoxes.push(box);
     };
 
-    // ÁRVORES (Tronco + Copa)
+    // ÁRVORES
     for (let i = 0; i < 15; i++) {
         const tree = new THREE.Group();
         const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 6), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
@@ -89,24 +96,22 @@ function generateMap() {
         addSolid(tree, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
     }
 
-    // PEDRAS ALTAS (COBERTURA REAL)
+    // PEDRAS ALTAS
     for (let i = 0; i < 10; i++) {
         const stone = new THREE.Mesh(
             new THREE.BoxGeometry(4, 8, 4),
             new THREE.MeshStandardMaterial({ color: 0x444444 })
         );
-        const x = (Math.random() - 0.5) * 70;
-        const z = (Math.random() - 0.5) * 70;
-        addSolid(stone, x, z, 4); // y=4 pois o cubo tem 8 de altura
+        addSolid(stone, (Math.random() - 0.5) * 70, (Math.random() - 0.5) * 70, 4);
     }
 }
 
-// --- 2. O JOGADOR (MAGNUM .357) ---
+// --- 2. O JOGADOR ---
 const weaponArm = new THREE.Group();
 function createFPSArm() {
     weaponArm.clear();
     const skin = new THREE.MeshStandardMaterial({ color: 0xd2b48c });
-    const iron = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 });
+    const iron = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
     const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.7), skin);
     arm.position.set(0.2, -0.25, -0.3);
@@ -118,20 +123,19 @@ function createFPSArm() {
 }
 createFPSArm();
 
-// --- 3. O BOT (IA COM PÉS NO CHÃO) ---
+// --- 3. O BOT ---
 class ArenaBot {
     constructor() {
         this.mesh = new THREE.Group();
         this.hp = 100;
         this.lastShot = 0;
-        this.reactionStart = 0;
         this.isFlashing = false;
 
         const skin = new THREE.MeshStandardMaterial({ color: 0xe0ac69 });
         const clothes = new THREE.MeshStandardMaterial({ color: 0x222222 });
 
         this.body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.4, 0.4), clothes);
-        this.body.position.y = 0.7; // Pés no y=0
+        this.body.position.y = 0.7; // Pés no chão
         this.head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), skin);
         this.head.position.y = 1.6;
 
@@ -153,7 +157,6 @@ class ArenaBot {
         botHp = this.hp;
         updateUI();
 
-        // Flash de Dano (Vermelho)
         if (!this.isFlashing) {
             this.isFlashing = true;
             this.body.material.color.set(0xff0000);
@@ -175,20 +178,16 @@ class ArenaBot {
         const dist = this.mesh.position.distanceTo(camera.position);
         const dir = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
 
-        // Raycast LOS (Não atira através de paredes)
         const ray = new THREE.Raycaster(this.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)), dir);
         const hits = ray.intersectObjects(obstacles, true);
         const canSee = (hits.length === 0 || hits[0].distance > dist);
 
         if (canSee) {
             this.mesh.lookAt(camera.position.x, 0, camera.position.z);
-
-            // Perseguição (Para a 6m)
             if (dist > STATS.BOT.STOP_DIST) {
                 this.mesh.position.add(new THREE.Vector3(dir.x, 0, dir.z).multiplyScalar(STATS.BOT.SPEED));
             }
 
-            // Atirar com Erro de 15%
             if (Date.now() - this.lastShot > 1200) {
                 this.lastShot = Date.now();
                 if (Math.random() > STATS.BOT.ACCURACY_ERROR) {
@@ -203,7 +202,7 @@ class ArenaBot {
     }
 }
 
-// --- MECÂNICAS DE TIRO ---
+// --- TIRO E INTERFACE ---
 function handleShoot() {
     if (gameState !== 'PLAYING' || isReloading || currentMag <= 0) {
         if (currentMag <= 0 && !isReloading) reload();
@@ -214,18 +213,15 @@ function handleShoot() {
     lastShotTime = Date.now();
     updateUI();
 
-    // Recoil
     recoilGroup.rotation.x += 0.15;
     weaponArm.position.z += 0.1;
 
     const ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-    // Colisão com Cenário
     const wallHits = ray.intersectObjects(obstacles, true);
     const wallDist = wallHits.length > 0 ? wallHits[0].distance : Infinity;
 
-    // Colisão com Bot
     let target = null;
     let bDist = Infinity;
     bots.forEach(b => {
@@ -238,14 +234,14 @@ function handleShoot() {
     });
 
     if (target && bDist < wallDist) {
-        target.onHit(STATS.PLAYER.DAMAGE); // 30 Dano
+        target.onHit(STATS.PLAYER.DAMAGE);
     }
 }
 
 function reload() {
     if (isReloading || reserveAmmo <= 0 || currentMag === STATS.PLAYER.MAG) return;
     isReloading = true;
-    document.getElementById('ammo-count').innerText = "...";
+    document.getElementById('ammo-count').innerText = "RLD";
     setTimeout(() => {
         const need = STATS.PLAYER.MAG - currentMag;
         const take = Math.min(need, reserveAmmo);
@@ -253,15 +249,21 @@ function reload() {
         reserveAmmo -= take;
         isReloading = false;
         updateUI();
-    }, STATS.PLAYER.RELOAD); // 2.5s
+    }, STATS.PLAYER.RELOAD);
 }
 
 function updateUI() {
-    document.getElementById('player-health-fill').style.width = Math.max(0, playerHp) + '%';
-    document.getElementById('bot-health-fill').style.width = Math.max(0, botHp) + '%';
-    document.getElementById('ammo-count').innerText = currentMag;
-    document.getElementById('total-ammo').innerText = reserveAmmo + currentMag;
-    document.getElementById('phase-display').innerText = `FASE ${currentPhase}`;
+    const pFill = document.getElementById('player-health-fill');
+    const bFill = document.getElementById('bot-health-fill');
+    const ammoText = document.getElementById('ammo-count');
+    const totalText = document.getElementById('total-ammo');
+    const phaseText = document.getElementById('phase-display');
+
+    if (pFill) pFill.style.width = Math.max(0, playerHp) + '%';
+    if (bFill) bFill.style.width = Math.max(0, botHp) + '%';
+    if (ammoText) ammoText.innerText = currentMag;
+    if (totalText) totalText.innerText = reserveAmmo + currentMag;
+    if (phaseText) phaseText.innerText = `FASE ${currentPhase}`;
 }
 
 function checkGameState() {
@@ -279,15 +281,11 @@ function checkGameState() {
 function runVictorySequence() {
     document.getElementById('victory-overlay').classList.remove('hidden');
     controls.unlock();
-    const m = new Audio('assets/dally_trend.mp3');
-    m.play().catch(() => { });
-
-    // 3ª Pessoa
+    new Audio('assets/dally_trend.mp3').play().catch(() => { });
     camera.position.set(0, 3, 6);
     camera.lookAt(0, 1.5, 0);
 }
 
-// --- CICLO PRINCIPAL ---
 function loop() {
     requestAnimationFrame(loop);
     if (gameState === 'PLAYING') {
