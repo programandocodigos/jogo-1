@@ -217,39 +217,57 @@ class ArenaBot {
 
 // --- MECÂNICAS JOGADOR ---
 function handleShoot() {
-    if (gameState !== 'PLAYING' || isReloading || currentMag <= 0) return;
+    if (gameState !== 'PLAYING' || isReloading || currentMag <= 0) {
+        if (currentMag <= 0 && !isReloading) reload();
+        return;
+    }
 
     currentMag--;
     lastShotTime = Date.now();
     updateUI();
 
-    // Recoil
-    recoilGroup.rotation.x += 0.1;
-    weaponProxy.position.z += 0.1;
+    // Recoil Visual
+    recoilGroup.rotation.x += 0.12;
+    weaponProxy.position.z += 0.15;
 
+    // Raycaster Preciso para FPS (Mira no centro da tela)
     const ray = new THREE.Raycaster();
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    ray.set(camera.position, dir);
+    ray.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-    // Checar Obstáculos
+    // Checar Obstáculos Primeiro (Árvores e Pedras)
     const wallHits = ray.intersectObjects(obstacles, true);
     const wallDist = wallHits.length > 0 ? wallHits[0].distance : Infinity;
 
-    // Checar Bot
+    // Checar Bot com Detecção de Grupo
     let target = null;
-    let bestDist = Infinity;
+    let hitDist = Infinity;
+
     bots.forEach(b => {
         if (b.group.visible) {
-            const hit = ray.intersectObject(b.group, true);
-            if (hit.length > 0 && hit[0].distance < bestDist) {
-                bestDist = hit[0].distance; target = b;
+            // Verifica colisão com o corpo e cabeça do bot
+            const hits = ray.intersectObject(b.group, true);
+            if (hits.length > 0 && hits[0].distance < hitDist) {
+                hitDist = hits[0].distance;
+                target = b;
             }
         }
     });
 
-    if (target && bestDist < wallDist) {
+    // Só registra o dano se o Bot estiver MAIS PERTO que a parede/árvore
+    if (target && hitDist < wallDist) {
         target.onHit(STATS.PLAYER.DAMAGE);
+        showHitMarker(); // Feedback visual na mira
     }
+}
+
+function showHitMarker() {
+    const cross = document.getElementById('crosshair');
+    cross.style.borderColor = '#ff0000';
+    cross.style.transform = 'translate(-50%, -50%) scale(1.5)';
+    setTimeout(() => {
+        cross.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+        cross.style.transform = 'translate(-50%, -50%) scale(1)';
+    }, 100);
 }
 
 function reload() {
