@@ -26,9 +26,10 @@ let isJumping = false;
 const keys = {};
 
 // --- ÁUDIO (SFX) ---
+const somTiro = new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_783d10a102.mp3');
 const sfx = {
-    shot: new Audio('https://cdn.pixabay.com/audio/2021/08/04/audio_c3bdd7884d.mp3'), // Escolha preferida: Heavy Revolver Shot
-    click: new Audio('assets/click.mp3'), // Som de gatilho vazio
+    shot: somTiro,
+    click: new Audio('assets/click.mp3'),
     reload: new Audio('assets/reload.mp3')
 };
 sfx.shot.volume = 1.0; // Volume Máximo: Potência Total da Magnum .357
