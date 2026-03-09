@@ -75,8 +75,17 @@ body {
     z-index: 50;
 }
 
-#left-hud { display: flex; flex-direction: column; gap: 10px; }
-#right-hud { display: flex; flex-direction: column; align-items: flex-end; }
+#left-hud {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#right-hud {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
 
 .stat-item {
     display: flex;
@@ -101,7 +110,10 @@ body {
     transition: width 0.2s ease;
 }
 
-.bot-hb { width: 300px; height: 25px; }
+.bot-hb {
+    width: 300px;
+    height: 25px;
+}
 
 
 /* Overlays */
@@ -151,7 +163,8 @@ body {
 }
 
 /* Game Over & Pause Styling */
-#game-over-overlay, #pause-overlay {
+#game-over-overlay,
+#pause-overlay {
     background: rgba(0, 0, 0, 0.7);
 }
 
@@ -224,41 +237,6 @@ body {
 }
 
 /* Shop UI */
-<<<<<<< HEAD
-.shop-grid {
-    display: flex;
-    justify-content: center;
-    gap: 30px;
-    flex-wrap: wrap;
-}
-
-.shop-card {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 30px;
-    border-radius: 15px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    width: 280px;
-    transition: 0.3s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.shop-card.highlighted {
-    border-color: var(--primary);
-    background: rgba(251, 191, 36, 0.08);
-    box-shadow: 0 0 20px rgba(251, 191, 36, 0.1);
-}
-
-.weapon-icon {
-    width: 150px;
-    height: 100px;
-    object-fit: contain;
-    margin-bottom: 20px;
-}
-
-.shop-card h3 {
-=======
 .shop-items {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -295,7 +273,6 @@ body {
 
 .shop-item h3 {
     font-size: 1rem;
->>>>>>> ea74bf9a975600023f594491394aaf2ac58566f6
     color: var(--primary);
     margin-bottom: 2px;
 }
@@ -306,23 +283,16 @@ body {
     margin-bottom: 10px;
 }
 
-<<<<<<< HEAD
-.shop-card p {
-    font-size: 0.9rem;
-    opacity: 0.8;
+.shop-item .glow-btn {
+    width: 100%;
+    margin-top: auto;
+    padding: 10px;
 }
 
 .bought {
     background: #475569 !important;
     opacity: 0.7;
     cursor: default !important;
-=======
-.shop-item .glow-btn {
-    width: 100%;
-    margin-top: auto;
-    padding: 10px;
-    font-size: 0.8rem;
->>>>>>> ea74bf9a975600023f594491394aaf2ac58566f6
 }
 
 .victory-btns {

@@ -19,10 +19,12 @@ const STATS = {
         }
     },
     BOT: {
-        HP: 100, DAMAGE: 40, SPEED: 0.08, ACCURACY: 0.55, SPREAD: 0.04,
+        HP: 100, DAMAGE: 25, SPEED: 0.08, ACCURACY: 0.4, SPREAD: 0.04,
         REACTION: 500, STOP_DIST: 10, STRAFE_SPEED: 0.06
     }
 };
+
+const UNLOCKED_WEAPONS = ['MAGNUM'];
 
 // --- ESTADO DO JOGO ---
 let gameState = 'START';
@@ -219,17 +221,10 @@ class ArenaBot {
         // Olhar para o jogador
         this.group.lookAt(camera.position.x, 0, camera.position.z);
 
-<<<<<<< HEAD
-    // Controle de cadência
-    // Pistola: 400ms | Fuzil: 280ms (30% mais rápido)
-    const fireRate = hasRifle ? 280 : 400;
-    if (Date.now() - lastShotTime < fireRate) return;
-=======
         // Raycast de Visibilidade
         const ray = new THREE.Raycaster(this.group.position.clone().add(new THREE.Vector3(0, 1.7, 0)), toPlayer);
         const inters = ray.intersectObjects(solidObjects, true);
         this.isPlayerVisible = (inters.length === 0 || inters[0].distance > dist);
->>>>>>> ea74bf9a975600023f594491394aaf2ac58566f6
 
         // Movimento (Frente/Trás)
         if (dist > STATS.BOT.STOP_DIST || !this.isPlayerVisible) {
@@ -371,6 +366,23 @@ function updateUI() {
     document.getElementById('total-ammo').innerText = reserveAmmo;
     document.getElementById('phase-display').innerText = `FASE ${currentPhase}`;
 
+    // Atualizar Loja
+    const buyPistolBtn = document.getElementById('buy-pistol');
+    buyPistolBtn.innerText = currentWeapon === 'MAGNUM' ? "EQUIPADO" : "EQUIPAR";
+    buyPistolBtn.classList.toggle('bought', currentWeapon === 'MAGNUM');
+    buyPistolBtn.disabled = false; // Permitir equipar de volta
+
+    const buyRifleBtn = document.getElementById('buy-rifle');
+    if (UNLOCKED_WEAPONS.includes('RIFLE')) {
+        buyRifleBtn.innerText = currentWeapon === 'RIFLE' ? "EQUIPADO" : "EQUIPAR";
+        buyRifleBtn.classList.add('bought');
+        buyRifleBtn.style.background = currentWeapon === 'RIFLE' ? "#475569" : "#fbbf24";
+    } else {
+        buyRifleBtn.innerText = "COMPRAR (50 MOEDAS)";
+        buyRifleBtn.classList.remove('bought');
+        buyRifleBtn.style.background = "#fbbf24";
+    }
+
     const targetBot = botsArray.find(b => b.group.visible) || botsArray[0];
     if (targetBot) document.getElementById('bot-health-fill').style.width = Math.max(0, targetBot.hp) + '%';
 }
@@ -419,25 +431,38 @@ document.getElementById('shop-btn-vic').onclick = () => document.getElementById(
 document.getElementById('close-shop').onclick = () => document.getElementById('shop-overlay').classList.add('hidden');
 
 document.getElementById('buy-pistol').onclick = () => {
+    if (currentWeapon === 'MAGNUM') return;
     currentWeapon = 'MAGNUM';
     const stats = STATS.WEAPONS[currentWeapon];
     currentMag = stats.MAG;
     reserveAmmo = stats.TOTAL - stats.MAG;
     createWeaponModel();
-    document.getElementById('shop-overlay').classList.add('hidden');
     updateUI();
+    playSfx('click');
 };
 document.getElementById('buy-rifle').onclick = () => {
-    if (coins >= 50 || currentWeapon === 'RIFLE') {
-        if (currentWeapon !== 'RIFLE') coins -= 50;
+    if (currentWeapon === 'RIFLE') return;
+    if (UNLOCKED_WEAPONS.includes('RIFLE')) {
         currentWeapon = 'RIFLE';
         const stats = STATS.WEAPONS[currentWeapon];
         currentMag = stats.MAG;
         reserveAmmo = stats.TOTAL - stats.MAG;
         createWeaponModel();
-        document.getElementById('shop-overlay').classList.add('hidden');
         updateUI();
-    } else { alert("MOEDAS INSUFICIENTES!"); }
+        playSfx('click');
+    } else if (coins >= 50) {
+        coins -= 50;
+        UNLOCKED_WEAPONS.push('RIFLE');
+        currentWeapon = 'RIFLE';
+        const stats = STATS.WEAPONS[currentWeapon];
+        currentMag = stats.MAG;
+        reserveAmmo = stats.TOTAL - stats.MAG;
+        createWeaponModel();
+        updateUI();
+        playSfx('reload');
+    } else {
+        alert("MOEDAS INSUFICIENTES!");
+    }
 };
 
 // --- CONTROLES ---
@@ -459,112 +484,24 @@ window.addEventListener('mousedown', e => {
 });
 window.addEventListener('mouseup', e => { if (e.button === 0) isMouseDown = false; });
 
-<<<<<<< HEAD
-// Ajuste no loop para tiro automático
-function autoFire() {
-    if (isMouseDown && hasRifle && gameState === 'PLAYING') {
-        handleShoot();
-    }
-}
-
-function nextPhase() {
-    currentPhase = 2;
-    document.getElementById('victory-overlay').classList.add('hidden');
-
-    // Reset Player
-    playerHp = 100;
-    currentMag = hasRifle ? 30 : 20;
-    reserveAmmo = hasRifle ? 120 : 40;
-
-    // Reset Map and Bot for Phase 2
-    generateMap();
-    bot.reset();
-    botHp = 250; // Bot muito mais forte na Fase 2
-
-    gameState = 'PLAYING';
-    controls.lock();
-}
-
-function openShop() {
-    document.getElementById('shop-overlay').classList.remove('hidden');
-    controls.unlock();
-}
-
-function buyRifle() {
-    if (coins >= 50 && !hasRifle) {
-        coins -= 50;
-        hasRifle = true;
-        document.getElementById('coin-count').innerText = coins;
-        document.getElementById('buy-rifle').innerText = "COMPRADO";
-        document.getElementById('buy-rifle').disabled = true;
-
-        // Mudar visual da arma (fuzil mais robusto)
-        weaponProxy.children[0].scale.set(1.5, 1.2, 2.5);
-        weaponProxy.children[0].position.z = -0.7;
-
-        alert("FUZIL DE ASSALTO ADQUIRIDO! Cadência +30%. segure o mouse para atirar.");
-    } else if (hasRifle) {
-        alert("Já possui o Rifle!");
-    } else {
-        alert("Moedas insuficientes!");
-    }
-}
-
-function checkPlayerCollision(position) {
-    const playerBox = new THREE.Box3().setFromCenterAndSize(
-        position,
-        new THREE.Vector3(0.8, 2.0, 0.8) // Tamanho aproximado do jogador
-    );
-
-    for (let box of obstacleBoxes) {
-        if (playerBox.intersectsBox(box)) return true;
-    }
-    return false;
-}
-
-function move() {
-    if (!controls.isLocked) return;
-
-    const moveVector = new THREE.Vector3();
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-
-    forward.y = 0;
-    right.y = 0;
-    forward.normalize();
-    right.normalize();
-
-    if (keys['KeyW']) moveVector.add(forward);
-    if (keys['KeyS']) moveVector.sub(forward);
-    if (keys['KeyA']) moveVector.sub(right);
-    if (keys['KeyD']) moveVector.add(right);
-
-    if (moveVector.length() > 0) {
-        moveVector.normalize().multiplyScalar(STATS.PLAYER.SPEED);
-
-        // Tentativa de movimento no eixo X
-        const nextPosX = camera.position.clone();
-        nextPosX.x += moveVector.x;
-        if (!checkPlayerCollision(nextPosX)) {
-            camera.position.x = nextPosX.x;
-        }
-
-        // Tentativa de movimento no eixo Z
-        const nextPosZ = camera.position.clone();
-        nextPosZ.z += moveVector.z;
-        if (!checkPlayerCollision(nextPosZ)) {
-            camera.position.z = nextPosZ.z;
-        }
-    }
-}
-=======
 document.getElementById('start-btn').onclick = () => startPhase(1);
 document.getElementById('retry-btn').onclick = () => startPhase(currentPhase);
 document.getElementById('next-phase-btn').onclick = () => startPhase(2);
 document.getElementById('reset-btn').onclick = () => {
     coins = 0; currentWeapon = 'MAGNUM'; startPhase(1);
 };
->>>>>>> ea74bf9a975600023f594491394aaf2ac58566f6
+document.getElementById('buy-medkit').onclick = () => {
+    if (coins >= 30 && playerHp < 100) {
+        coins -= 30;
+        playerHp = Math.min(100, playerHp + 50);
+        updateUI();
+        playSfx('reload');
+    } else if (playerHp >= 100) {
+        alert("SANGUE JÁ ESTÁ NO MÁXIMO!");
+    } else {
+        alert("MOEDAS INSUFICIENTES!");
+    }
+};
 
 // --- LOOP PRINCIPAL ---
 function loop() {
@@ -614,25 +551,7 @@ function movePlayer() {
     }
 }
 
-<<<<<<< HEAD
-document.getElementById('start-btn').addEventListener('click', () => {
-    document.getElementById('start-overlay').classList.add('hidden');
-    camera.position.set(0, 1.7, 12);
-    gameState = 'PLAYING'; controls.lock(); loop();
-});
-
-document.getElementById('next-phase-btn').addEventListener('click', nextPhase);
-document.getElementById('shop-btn-vic').addEventListener('click', openShop);
-document.getElementById('close-shop').addEventListener('click', () => {
-    document.getElementById('shop-overlay').classList.add('hidden');
-    controls.lock(); // Retorna o foco ao jogo se necessário
-});
-document.getElementById('buy-rifle').addEventListener('click', buyRifle);
-
-generateMap(); checkGameState(); bot.reset();
-=======
 // Início
 generateMap();
 createWeaponModel();
 loop();
->>>>>>> ea74bf9a975600023f594491394aaf2ac58566f6

@@ -93,64 +93,42 @@
         </div>
 
         <!-- Loja Overlay -->
-        <div id="shop-overlay" class="overlay hidden">
-            <div class="content glass shop-content">
-<<<<<<< HEAD
-                <h1 style="color: #fbbf24; margin-bottom: 30px;">LOJA DE ARMAS</h1>
-                <div class="shop-grid">
-                    <div class="shop-card">
-                        <img src="assets/pistola.png" alt="Pistola" class="weapon-icon">
-                        <h3>PISTOLA MAGNUM</h3>
-                        <p>Dano: 20 | Cadência: Normal</p>
-                        <button class="glow-btn bought" disabled>ADQUIRIDO</button>
-                    </div>
-                    <div class="shop-card highlighted">
-                        <img src="assets/fuzil.png" alt="Fuzil" class="weapon-icon">
-                        <h3>FUZIL DE ASSALTO</h3>
-                        <p>Dano: 15 | 30% Mais Rápido</p>
-                        <button id="buy-rifle" class="glow-btn">COMPRAR (50 MOEDAS)</button>
-                    </div>
-                </div>
-                <button id="close-shop" class="glow-btn" style="background: #ef4444; margin-top: 30px;">VOLTAR</button>
-=======
-                <h1 class="shop-title" style="color: #fbbf24; font-size: 2.5rem; margin-bottom: 20px;">ARSENAL DE
-                    COMBATE</h1>
-                <div class="shop-items" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-                    <div class="shop-item">
-                        <div class="weapon-preview" style="background-image: url('assets/pistol.png');"></div>
-                        <h3>PISTOLA</h3>
-                        <p>Precisão total</p>
-                        <button id="buy-pistol" class="glow-btn">EQUIPAR</button>
-                    </div>
-                    <div class="shop-item">
-                        <div class="weapon-preview" style="background-image: url('assets/rifle.png');"></div>
-                        <h3>RIFLE</h3>
-                        <p>Totalmente automático</p>
-                        <button id="buy-rifle" class="glow-btn">COMPRAR (50)</button>
-                    </div>
-                    <div class="shop-item">
-                        <div class="weapon-preview" style="background-image: url('assets/shotgun.png');"></div>
-                        <h3>ESCRAVOLTA</h3>
-                        <p>Dano em área</p>
-                        <button id="buy-shotgun" class="glow-btn">COMPRAR (80)</button>
-                    </div>
-                    <div class="shop-item">
-                        <div class="weapon-preview" style="background-image: url('assets/medkit.png');"></div>
-                        <h3>KIT MÉDICO</h3>
-                        <p>Recuperar HP</p>
-                        <button id="buy-medkit" class="glow-btn" style="background: #22c55e;">USAR (30)</button>
-                    </div>
-                </div>
-                <button id="close-shop" class="glow-btn"
-                    style="background: #ef4444; width: 100%; margin-top: 20px;">VOLTAR À BATALHA</button>
->>>>>>> ea74bf9a975600023f594491394aaf2ac58566f6
+        <h1 class="shop-title" style="color: #fbbf24; font-size: 2.5rem; margin-bottom: 20px;">ARSENAL DE COMBATE</h1>
+        <div class="shop-items" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+            <div class="shop-item">
+                <div class="weapon-preview" style="background-color: #444;"></div>
+                <h3>PISTOLA MAGNUM</h3>
+                <p>Dano: 30 | Precisão Total</p>
+                <button id="buy-pistol" class="glow-btn bought" disabled>ADQUIRIDO</button>
+            </div>
+            <div class="shop-item">
+                <div class="weapon-preview" style="background-color: #1a1a1a;"></div>
+                <h3>RIFLE DE ASSALTO</h3>
+                <p>Dano: 15 | Totalmente Automático</p>
+                <button id="buy-rifle" class="glow-btn">COMPRAR (50 MOEDAS)</button>
+            </div>
+            <div class="shop-item">
+                <div class="weapon-preview" style="background-color: #2a2a2a;"></div>
+                <h3>ESCRAVOLTA</h3>
+                <p>Dano em área (Em breve)</p>
+                <button id="buy-shotgun" class="glow-btn" disabled>BLOQUEADO</button>
+            </div>
+            <div class="shop-item">
+                <div class="weapon-preview" style="background-color: #22c55e;"></div>
+                <h3>KIT MÉDICO</h3>
+                <p>Recuperar HP</p>
+                <button id="buy-medkit" class="glow-btn" style="background: #22c55e;">USAR (30 MOEDAS)</button>
             </div>
         </div>
+        <button id="close-shop" class="glow-btn" style="background: #ef4444; width: 100%; margin-top: 20px;">VOLTAR À
+            BATALHA</button>
+    </div>
+    </div>
 
-        <!-- Áudio Meme 67 -->
-        <audio id="victory-audio">
-            <source src="assets/meme67.mp3" type="audio/mpeg">
-        </audio>
+    <!-- Áudio Meme 67 -->
+    <audio id="victory-audio">
+        <source src="assets/meme67.mp3" type="audio/mpeg">
+    </audio>
     </div>
 
     <script type="module" src="game.js"></script>
