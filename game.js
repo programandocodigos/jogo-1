@@ -25,6 +25,23 @@ let isMoving = false;
 let isJumping = false;
 const keys = {};
 
+// --- ÁUDIO (SFX) ---
+const sfx = {
+    shot: new Audio('assets/tiro.mp3'),
+    click: new Audio('assets/click.mp3'), // Som de gatilho vazio
+    reload: new Audio('assets/reload.mp3')
+};
+sfx.shot.volume = 0.4;
+sfx.click.volume = 0.3;
+sfx.reload.volume = 0.5;
+
+function playSfx(id) {
+    if (sfx[id]) {
+        sfx[id].currentTime = 0;
+        sfx[id].play().catch(e => console.warn("Erro ao tocar áudio:", id));
+    }
+}
+
 let bots = [];
 let solidObjects = [];
 let obstacleBoxes = [];
@@ -299,16 +316,20 @@ class ArenaBot {
 
 // --- MECÂNICAS ---
 function handleShoot() {
-    if (gameState !== 'PLAYING' || isReloading || currentMag <= 0) {
-        if (currentMag <= 0 && reserveAmmo > 0 && !isReloading) handleReload();
+    if (gameState !== 'PLAYING' || isReloading) return;
+
+    if (currentMag <= 0) {
+        playSfx('click'); // Som de arma vazia
+        if (reserveAmmo > 0) handleReload();
         return;
     }
 
+    playSfx('shot'); // Som real de Magnum .357
     currentMag--;
     updateUI();
 
     if (currentMag === 0 && reserveAmmo > 0) {
-        handleReload();
+        setTimeout(() => handleReload(), 200); // Pequeno atraso para o som do último tiro respirar
     }
 
     recoilGroup.rotation.x += 0.15;
@@ -333,6 +354,8 @@ function handleShoot() {
 function handleReload() {
     if (isReloading || reserveAmmo <= 0 || currentMag === STATS.PLAYER.MAG) return;
     isReloading = true;
+
+    playSfx('reload'); // Inicia som de recarga mecânica
 
     // Feedback visual (abaixa a Magnum)
     if (weaponGroup) weaponGroup.position.y -= 0.15;
