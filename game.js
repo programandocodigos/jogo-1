@@ -275,8 +275,9 @@ function checkGameState() {
 function handleShoot() {
     if (isReloading || gameState !== 'PLAYING' || currentMag <= 0) return;
 
-    // Controle de cadência (Rifle atira a cada 100ms, Pistola a cada 400ms)
-    const fireRate = hasRifle ? 100 : 400;
+    // Controle de cadência
+    // Pistola: 400ms | Fuzil: 280ms (30% mais rápido)
+    const fireRate = hasRifle ? 280 : 400;
     if (Date.now() - lastShotTime < fireRate) return;
 
     lastShotTime = Date.now();
@@ -426,11 +427,11 @@ function buyRifle() {
         document.getElementById('buy-rifle').innerText = "COMPRADO";
         document.getElementById('buy-rifle').disabled = true;
 
-        // Mudar visual da arma (rifle mais longo)
-        weaponProxy.children[0].scale.z = 2;
-        weaponProxy.children[0].position.z = -0.6;
+        // Mudar visual da arma (fuzil mais robusto)
+        weaponProxy.children[0].scale.set(1.5, 1.2, 2.5);
+        weaponProxy.children[0].position.z = -0.7;
 
-        alert("RIFLE ADQUIRIDO! Atire segurando o mouse.");
+        alert("FUZIL DE ASSALTO ADQUIRIDO! Cadência +30%. segure o mouse para atirar.");
     } else if (hasRifle) {
         alert("Já possui o Rifle!");
     } else {
@@ -509,6 +510,7 @@ document.getElementById('next-phase-btn').addEventListener('click', nextPhase);
 document.getElementById('shop-btn-vic').addEventListener('click', openShop);
 document.getElementById('close-shop').addEventListener('click', () => {
     document.getElementById('shop-overlay').classList.add('hidden');
+    controls.lock(); // Retorna o foco ao jogo se necessário
 });
 document.getElementById('buy-rifle').addEventListener('click', buyRifle);
 

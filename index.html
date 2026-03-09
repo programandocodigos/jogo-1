@@ -83,15 +83,22 @@
         <!-- Loja Overlay -->
         <div id="shop-overlay" class="overlay hidden">
             <div class="content glass shop-content">
-                <h1 style="color: #fbbf24;">LOJA DE ARMAS</h1>
-                <div class="shop-items">
-                    <div class="shop-item">
-                        <h3>RIFLE DE ASSALTO</h3>
-                        <p>Atira muito mais rápido | Dano: 15</p>
+                <h1 style="color: #fbbf24; margin-bottom: 30px;">LOJA DE ARMAS</h1>
+                <div class="shop-grid">
+                    <div class="shop-card">
+                        <img src="assets/pistola.png" alt="Pistola" class="weapon-icon">
+                        <h3>PISTOLA MAGNUM</h3>
+                        <p>Dano: 20 | Cadência: Normal</p>
+                        <button class="glow-btn bought" disabled>ADQUIRIDO</button>
+                    </div>
+                    <div class="shop-card highlighted">
+                        <img src="assets/fuzil.png" alt="Fuzil" class="weapon-icon">
+                        <h3>FUZIL DE ASSALTO</h3>
+                        <p>Dano: 15 | 30% Mais Rápido</p>
                         <button id="buy-rifle" class="glow-btn">COMPRAR (50 MOEDAS)</button>
                     </div>
                 </div>
-                <button id="close-shop" class="glow-btn" style="background: #ef4444;">FECHAR</button>
+                <button id="close-shop" class="glow-btn" style="background: #ef4444; margin-top: 30px;">VOLTAR</button>
             </div>
         </div>
 

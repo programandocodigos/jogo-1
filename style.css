@@ -254,29 +254,52 @@ body {
 }
 
 /* Shop UI */
-.shop-items {
+.shop-grid {
     display: flex;
     justify-content: center;
-    gap: 20px;
-    margin: 30px 0;
+    gap: 30px;
+    flex-wrap: wrap;
 }
 
-.shop-item {
+.shop-card {
     background: rgba(255, 255, 255, 0.05);
-    padding: 20px;
-    border-radius: 12px;
+    padding: 30px;
+    border-radius: 15px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 280px;
     transition: 0.3s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-.shop-item:hover {
+.shop-card.highlighted {
     border-color: var(--primary);
-    background: rgba(251, 191, 36, 0.05);
+    background: rgba(251, 191, 36, 0.08);
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.1);
 }
 
-.shop-item h3 {
+.weapon-icon {
+    width: 150px;
+    height: 100px;
+    object-fit: contain;
+    margin-bottom: 20px;
+}
+
+.shop-card h3 {
     color: var(--primary);
     margin-bottom: 10px;
+}
+
+.shop-card p {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.bought {
+    background: #475569 !important;
+    opacity: 0.7;
+    cursor: default !important;
 }
 
 .victory-btns {
