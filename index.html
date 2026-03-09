@@ -25,11 +25,7 @@
         <!-- HUD Principal -->
         <header id="hud" class="glass">
             <div id="left-hud">
-                <div id="game-title">BOX FIGHT 2026 <span id="phase-display">FASE 1</span> <span
-                        style="font-size: 0.6rem; color: #fbbf24; opacity: 0.5;">v2.0</span></div>
-                <div class="stat-item health-container">
-                    <span class="label">MOEDAS: <span id="coin-count" style="color: #fbbf24;">0</span></span>
-                </div>
+                <div id="game-title">BOX FIGHT 2026 <span id="phase-display">FASE 1</span></div>
                 <div class="stat-item health-container">
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <div>
@@ -47,20 +43,8 @@
                 <div class="stat-item ammo-hud">
                     <span id="ammo-count">10</span> / <span id="total-ammo">30</span>
                 </div>
-<<<<<<< HEAD
                 <div id="bots-health-container" class="stat-item health-container">
-                    <!-- Barras de vida dos bots serão geradas aqui via JS -->
-=======
-            </div>
-
-            <!-- BARRA DO BOT NO TOPO DIREITO -->
-            <div id="right-hud">
-                <div class="stat-item bot-health-hud">
-                    <span class="label" style="color: #ff0000; text-align: right;">SANGUE DO BOT</span>
-                    <div class="health-bar bot-hb" style="background: #440000; border: 2px solid #ff0000;">
-                        <div id="bot-health-fill" class="health-fill" style="background: #00ff00; width: 100%;"></div>
-                    </div>
->>>>>>> 51d05c018064a73f1e82b78df6371d17fb8054fa
+                    <!-- Barras de vida dos bots (dinâmico) -->
                 </div>
             </div>
         </header>
@@ -99,45 +83,9 @@
                 <div class="victory-btns">
                     <button id="next-phase-btn" class="glow-btn">PRÓXIMA FASE</button>
                     <button id="shop-btn-vic" class="glow-btn" style="background: #22c55e;">LOJA</button>
-                    <button id="reset-btn" class="glow-btn" style="display: block; margin: 20px auto;">RECOMESSAR DO
-                        ZERO</button>
+                    <button id="reset-btn" class="glow-btn"
+                        style="display: block; margin: 20px auto;">RECOMEÇAR</button>
                 </div>
-            </div>
-        </div>
-
-        <!-- Loja Overlay -->
-        <div id="shop-overlay" class="overlay hidden">
-            <div class="content glass shop-content">
-                <h1 class="shop-title" style="color: #fbbf24; font-size: 2.5rem; margin-bottom: 20px;">ARSENAL DE
-                    COMBATE</h1>
-                <div class="shop-items" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-                    <div class="shop-item">
-                        <div class="weapon-preview" style="background-color: #444;"></div>
-                        <h3>PISTOLA MAGNUM</h3>
-                        <p>Dano: 30 | Precisão Total</p>
-                        <button id="buy-pistol" class="glow-btn">EQUIPAR</button>
-                    </div>
-                    <div class="shop-item">
-                        <div class="weapon-preview" style="background-color: #1a1a1a;"></div>
-                        <h3>RIFLE DE ASSALTO</h3>
-                        <p>Dano: 15 | Totalmente Automático</p>
-                        <button id="buy-rifle" class="glow-btn">COMPRAR (50 MOEDAS)</button>
-                    </div>
-                    <div class="shop-item">
-                        <div class="weapon-preview" style="background-color: #2a2a2a;"></div>
-                        <h3>ESCRAVOLTA</h3>
-                        <p>Dano em área (Em breve)</p>
-                        <button id="buy-shotgun" class="glow-btn" disabled>BLOQUEADO</button>
-                    </div>
-                    <div class="shop-item">
-                        <div class="weapon-preview" style="background-color: #22c55e;"></div>
-                        <h3>KIT MÉDICO</h3>
-                        <p>Recuperar HP</p>
-                        <button id="buy-medkit" class="glow-btn" style="background: #22c55e;">USAR (30 MOEDAS)</button>
-                    </div>
-                </div>
-                <button id="close-shop" class="glow-btn"
-                    style="background: #ef4444; width: 100%; margin-top: 20px;">VOLTAR À BATALHA</button>
             </div>
         </div>
 
