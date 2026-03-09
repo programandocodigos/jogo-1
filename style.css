@@ -125,14 +125,19 @@ body {
     border: 1px solid var(--primary);
 }
 
-.coin-hud {
-    font-size: 1.5rem;
+.coin-container-integrated {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    padding-left: 15px;
+}
+
+.coin-value {
+    font-size: 1.2rem;
     color: #ffd700;
+    font-weight: 900;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-    background: rgba(0, 0, 0, 0.4);
-    padding: 5px 15px;
-    border-radius: 8px;
-    border: 1px solid #ffd700;
 }
 
 /* Overlays */
@@ -182,7 +187,8 @@ body {
 }
 
 /* Game Over & Pause Styling */
-#game-over-overlay, #pause-overlay {
+#game-over-overlay,
+#pause-overlay {
     background: rgba(0, 0, 0, 0.7);
 }
 

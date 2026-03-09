@@ -28,17 +28,21 @@
                     style="color: #fff; margin-left:15px; font-size: 0.9rem; opacity: 0.8;">FASE 1</span></div>
             <div class="stats">
                 <div class="stat-item health-container">
-                    <span class="label">SANGUE JOGADOR</span>
-                    <div class="health-bar">
-                        <div id="player-health-fill" class="health-fill"></div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div>
+                            <span class="label">SANGUE JOGADOR</span>
+                            <div class="health-bar">
+                                <div id="player-health-fill" class="health-fill"></div>
+                            </div>
+                        </div>
+                        <div class="coin-container-integrated">
+                            <span class="label" style="color: #ffd700;">💰 Moedas:</span>
+                            <div id="coin-count" class="coin-value">0</div>
+                        </div>
                     </div>
                 </div>
                 <div class="stat-item ammo-hud">
                     <span id="ammo-count">10</span> / <span id="total-ammo">20</span>
-                </div>
-                <div class="stat-item coin-container">
-                    <span class="label">MOEDAS</span>
-                    <div id="coin-count" class="coin-hud">0</div>
                 </div>
                 <div id="bots-health-container" class="stat-item health-container">
                     <!-- Barras de vida dos bots serão geradas aqui via JS -->

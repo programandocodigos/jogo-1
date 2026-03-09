@@ -8,8 +8,16 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 // --- CONFIGURAÇÕES DE COMBATE ---
 const STATS = {
-    PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG_SIZE: 10, TOTAL_RESERVE: 40 },
-    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.08, ACCURACY: 0.8, RELOAD: 2000 }
+    PLAYER: {
+        HP: 100,
+        SPEED: 0.16,
+        RELOAD_TIME: 2500, // 2.5s obrigatória
+        WEAPONS: {
+            MAGNUM: { DAMAGE: 30, MAG_SIZE: 10, RESERVE: 30, RATE: 400, AUTO: false },
+            RIFLE: { DAMAGE: 20, MAG_SIZE: 20, RESERVE: 60, RATE: 100, AUTO: true }
+        }
+    },
+    BOT: { HP: 100, DAMAGE: 40, SPEED: 0.08, ACCURACY: 0.6, RELOAD: 2000, STRAFE_TILL_REVERSE: 1000 }
 };
 
 // --- SISTEMA DE ÁUDIO ---
@@ -37,12 +45,13 @@ let gameState = 'START';
 let currentPhase = 1;
 let coins = 0;
 let playerHp = 100;
-let currentMag = STATS.PLAYER.MAG_SIZE;
-let reserveAmmo = STATS.PLAYER.TOTAL_RESERVE;
+let currentWeapon = 'MAGNUM';
+let currentMag = STATS.PLAYER.WEAPONS.MAGNUM.MAG_SIZE;
+let reserveAmmo = STATS.PLAYER.WEAPONS.MAGNUM.RESERVE;
 let isMouseDown = false;
 let isReloading = false;
 let lastShotTime = 0;
-let lastBotShot = 0;
+let reloadStartTime = 0;
 
 let bots = [];
 let obstacles = [];
@@ -212,16 +221,24 @@ class ArenaBot {
         const hasLoS = (obstacleHits.length === 0 || obstacleHits[0].distance > dist);
 
         if (hasLoS) {
-            this.mesh.lookAt(camera.position.x, 0, camera.position.z);
+            // Soft Tracking: O bot rotaciona suavemente em direção ao jogador
+            const targetRotation = Math.atan2(camera.position.x - this.mesh.position.x, camera.position.z - this.mesh.position.z);
+            this.mesh.rotation.y += (targetRotation - this.mesh.rotation.y) * 0.1;
+
             this.rArm.lookAt(camera.position); this.rArm.rotation.x += Math.PI / 2;
 
-            // Perseguição em X/Z apenas
+            // Movimentação do Bot: Strafe Lateral + Perseguição Suave
+            const time = Date.now() * 0.001;
+            const strafeDir = Math.sin(time * 2); // Oscilação lateral
+
             if (dist > 7) {
-                const step = new THREE.Vector3(dir.x, 0, dir.z).multiplyScalar(STATS.BOT.SPEED);
+                const forward = new THREE.Vector3(dir.x, 0, dir.z);
+                const side = new THREE.Vector3(-dir.z, 0, dir.x);
+                const step = forward.multiplyScalar(STATS.BOT.SPEED).add(side.multiplyScalar(strafeDir * 0.05));
                 this.mesh.position.add(step);
             }
 
-            // TIRO DO BOT (40 DANO)
+            // TIRO DO BOT (40 DANO) - Com Mira "Suave" (Simulada por chance de acerto reduzida)
             if (Date.now() - (this.lastShot || 0) > 1500) {
                 this.lastShot = Date.now();
                 if (Math.random() < STATS.BOT.ACCURACY) {
@@ -245,14 +262,20 @@ class ArenaBot {
     die() {
         this.mesh.visible = false;
         const bar = document.getElementById(`bot-${this.id}`); if (bar) bar.remove();
+        coins += 60; // Ganha 60 moedas ao matar o bot
         checkGameState();
     }
 }
 
 // --- MECÂNICA DE JOGO ---
 function handleShoot() {
-    if (isReloading || gameState !== 'PLAYING' || currentMag <= 0) return;
-    if (Date.now() - lastShotTime < 400) return;
+    if (isReloading || gameState !== 'PLAYING' || currentMag <= 0) {
+        if (currentMag <= 0 && !isReloading) reload();
+        return;
+    }
+
+    const weapon = STATS.PLAYER.WEAPONS[currentWeapon];
+    if (Date.now() - lastShotTime < weapon.RATE) return;
 
     lastShotTime = Date.now();
     currentMag--;
@@ -283,12 +306,27 @@ function handleShoot() {
 
     // TIRO NÃO ATRAVESSA PAREDE/ÁRVORE
     if (target && bestDist < obsDist) {
-        target.hp -= STATS.PLAYER.DAMAGE; // 30 DANO
+        target.hp -= weapon.DAMAGE;
         if (target.hp <= 0) target.die();
         showHitMarker();
     }
 
     checkGameState();
+}
+
+function reload() {
+    if (isReloading || reserveAmmo <= 0) return;
+    isReloading = true;
+    reloadStartTime = Date.now();
+    setTimeout(() => {
+        const weapon = STATS.PLAYER.WEAPONS[currentWeapon];
+        const needed = weapon.MAG_SIZE - currentMag;
+        const transfer = Math.min(needed, reserveAmmo);
+        currentMag += transfer;
+        reserveAmmo -= transfer;
+        isReloading = false;
+        checkGameState();
+    }, STATS.PLAYER.RELOAD_TIME);
 }
 
 function showHitMarker() {
@@ -308,6 +346,11 @@ function checkGameState() {
         gameState = 'GAMEOVER';
         document.getElementById('game-over-overlay').classList.remove('hidden');
         controls.unlock();
+    }
+
+    if (isReloading) {
+        const prog = (Date.now() - reloadStartTime) / STATS.PLAYER.RELOAD_TIME;
+        document.getElementById('ammo-count').innerText = `RELOAD... ${Math.round(prog * 100)}%`;
     }
 
     if (bots.length > 0 && bots.every(b => b.hp <= 0) && gameState === 'PLAYING') {
@@ -365,6 +408,12 @@ function loop() {
     if (gameState === 'PLAYING') {
         move();
         bots.forEach(b => b.update());
+
+        // Auto-fire loop (Run & Gun)
+        if (isMouseDown) {
+            handleShoot();
+        }
+
         recoilGroup.rotation.x *= 0.9;
         weaponProxy.position.z *= 0.85;
     }
@@ -372,13 +421,30 @@ function loop() {
 }
 
 // --- INPUTS ---
-window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'KeyR' && !isReloading) reload();
+    if (e.code === 'Digit1') switchWeapon('MAGNUM');
+    if (e.code === 'Digit2') switchWeapon('RIFLE');
+});
 window.addEventListener('keyup', e => keys[e.code] = false);
-window.addEventListener('mousedown', e => { if (e.button === 0) handleShoot(); });
+window.addEventListener('mousedown', e => { if (e.button === 0) isMouseDown = true; });
+window.addEventListener('mouseup', e => { if (e.button === 0) isMouseDown = false; });
+
+function switchWeapon(type) {
+    if (isReloading) return;
+    currentWeapon = type;
+    const w = STATS.PLAYER.WEAPONS[type];
+    currentMag = w.MAG_SIZE;
+    reserveAmmo = w.RESERVE;
+    checkGameState();
+}
 
 document.getElementById('start-btn').addEventListener('click', () => {
     document.getElementById('start-overlay').classList.add('hidden');
-    gameState = 'PLAYING'; playerHp = 100; currentMag = 10;
+    gameState = 'PLAYING';
+    playerHp = 100;
+    switchWeapon('MAGNUM');
     camera.position.set(0, 1.7, 12); controls.lock();
 });
 
@@ -390,7 +456,8 @@ document.getElementById('next-phase-btn').addEventListener('click', () => {
     document.getElementById('victory-overlay').classList.add('hidden');
     generateArena();
     bots = (currentPhase === 2) ? [new ArenaBot(), new ArenaBot()] : [new ArenaBot()];
-    playerHp = 100; currentMag = 10;
+    playerHp = 100;
+    switchWeapon(currentWeapon);
     camera.position.set(0, 1.7, 12); controls.lock();
     gameState = 'PLAYING';
 });
