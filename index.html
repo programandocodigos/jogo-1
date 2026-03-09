@@ -93,42 +93,45 @@
         </div>
 
         <!-- Loja Overlay -->
-        <h1 class="shop-title" style="color: #fbbf24; font-size: 2.5rem; margin-bottom: 20px;">ARSENAL DE COMBATE</h1>
-        <div class="shop-items" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-            <div class="shop-item">
-                <div class="weapon-preview" style="background-color: #444;"></div>
-                <h3>PISTOLA MAGNUM</h3>
-                <p>Dano: 30 | Precisão Total</p>
-                <button id="buy-pistol" class="glow-btn">EQUIPAR</button>
-            </div>
-            <div class="shop-item">
-                <div class="weapon-preview" style="background-color: #1a1a1a;"></div>
-                <h3>RIFLE DE ASSALTO</h3>
-                <p>Dano: 15 | Totalmente Automático</p>
-                <button id="buy-rifle" class="glow-btn">COMPRAR (50 MOEDAS)</button>
-            </div>
-            <div class="shop-item">
-                <div class="weapon-preview" style="background-color: #2a2a2a;"></div>
-                <h3>ESCRAVOLTA</h3>
-                <p>Dano em área (Em breve)</p>
-                <button id="buy-shotgun" class="glow-btn" disabled>BLOQUEADO</button>
-            </div>
-            <div class="shop-item">
-                <div class="weapon-preview" style="background-color: #22c55e;"></div>
-                <h3>KIT MÉDICO</h3>
-                <p>Recuperar HP</p>
-                <button id="buy-medkit" class="glow-btn" style="background: #22c55e;">USAR (30 MOEDAS)</button>
+        <div id="shop-overlay" class="overlay hidden">
+            <div class="content glass shop-content">
+                <h1 class="shop-title" style="color: #fbbf24; font-size: 2.5rem; margin-bottom: 20px;">ARSENAL DE
+                    COMBATE</h1>
+                <div class="shop-items" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                    <div class="shop-item">
+                        <div class="weapon-preview" style="background-color: #444;"></div>
+                        <h3>PISTOLA MAGNUM</h3>
+                        <p>Dano: 30 | Precisão Total</p>
+                        <button id="buy-pistol" class="glow-btn">EQUIPAR</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="weapon-preview" style="background-color: #1a1a1a;"></div>
+                        <h3>RIFLE DE ASSALTO</h3>
+                        <p>Dano: 15 | Totalmente Automático</p>
+                        <button id="buy-rifle" class="glow-btn">COMPRAR (50 MOEDAS)</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="weapon-preview" style="background-color: #2a2a2a;"></div>
+                        <h3>ESCRAVOLTA</h3>
+                        <p>Dano em área (Em breve)</p>
+                        <button id="buy-shotgun" class="glow-btn" disabled>BLOQUEADO</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="weapon-preview" style="background-color: #22c55e;"></div>
+                        <h3>KIT MÉDICO</h3>
+                        <p>Recuperar HP</p>
+                        <button id="buy-medkit" class="glow-btn" style="background: #22c55e;">USAR (30 MOEDAS)</button>
+                    </div>
+                </div>
+                <button id="close-shop" class="glow-btn"
+                    style="background: #ef4444; width: 100%; margin-top: 20px;">VOLTAR À BATALHA</button>
             </div>
         </div>
-        <button id="close-shop" class="glow-btn" style="background: #ef4444; width: 100%; margin-top: 20px;">VOLTAR À
-            BATALHA</button>
-    </div>
-    </div>
 
-    <!-- Áudio Meme 67 -->
-    <audio id="victory-audio">
-        <source src="assets/meme67.mp3" type="audio/mpeg">
-    </audio>
+        <!-- Áudio Meme 67 -->
+        <audio id="victory-audio">
+            <source src="assets/meme67.mp3" type="audio/mpeg">
+        </audio>
     </div>
 
     <script type="module" src="game.js"></script>

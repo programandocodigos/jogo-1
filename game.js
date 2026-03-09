@@ -83,6 +83,18 @@ document.getElementById('game-container').appendChild(renderer.domElement);
 
 const controls = new PointerLockControls(camera, document.body);
 
+controls.addEventListener('lock', () => {
+    if (gameState === 'PLAYING') {
+        document.getElementById('pause-overlay').classList.add('hidden');
+    }
+});
+
+controls.addEventListener('unlock', () => {
+    if (gameState === 'PLAYING') {
+        document.getElementById('pause-overlay').classList.remove('hidden');
+    }
+});
+
 // Luzes
 scene.add(new THREE.HemisphereLight(0xffffff, 0x080820, 0.6));
 const sun = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -490,6 +502,7 @@ document.getElementById('next-phase-btn').onclick = () => startPhase(2);
 document.getElementById('reset-btn').onclick = () => {
     coins = 0; currentWeapon = 'MAGNUM'; startPhase(1);
 };
+document.getElementById('resume-btn').onclick = () => controls.lock();
 document.getElementById('buy-medkit').onclick = () => {
     if (coins >= 30 && playerHp < 100) {
         coins -= 30;
