@@ -218,7 +218,7 @@ class ArenaBot {
 
         if (this.hp <= 0) {
             this.group.visible = false;
-            coins += 50;
+            coins += 60;
             updateUI();
             checkGameState();
         }
@@ -227,11 +227,15 @@ class ArenaBot {
     update() {
         if (!this.group.visible || gameState !== 'PLAYING') return;
 
+        // Rastreamento com atraso (Lerp)
+        if (!this.trackingPoint) this.trackingPoint = camera.position.clone();
+        this.trackingPoint.lerp(camera.position, 0.08); // Atraso na mira
+
         const dist = this.group.position.distanceTo(camera.position);
         const toPlayer = new THREE.Vector3().subVectors(camera.position, this.group.position).normalize();
 
-        // Olhar para o jogador
-        this.group.lookAt(camera.position.x, 0, camera.position.z);
+        // Olhar para o ponto de rastreamento (não instantâneo para a câmera)
+        this.group.lookAt(this.trackingPoint.x, 0, this.trackingPoint.z);
 
         // Raycast de Visibilidade
         const ray = new THREE.Raycaster(this.group.position.clone().add(new THREE.Vector3(0, 1.7, 0)), toPlayer);
@@ -255,7 +259,12 @@ class ArenaBot {
         // Tiro do Bot
         if (this.isPlayerVisible && Date.now() - this.lastShot > 1200) {
             this.lastShot = Date.now();
-            if (Math.random() < STATS.BOT.ACCURACY) {
+
+            // Penalidade de precisão se o jogador estiver se movendo rápido (distância entre mira e jogador)
+            const aimError = this.trackingPoint.distanceTo(camera.position);
+            const dynamicAccuracy = STATS.BOT.ACCURACY / (1 + aimError * 2);
+
+            if (Math.random() < dynamicAccuracy) {
                 playerHp -= STATS.BOT.DAMAGE;
                 document.body.style.boxShadow = "inset 0 0 40px #ff0000";
                 setTimeout(() => document.body.style.boxShadow = "none", 100);
