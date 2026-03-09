@@ -24,8 +24,12 @@
     <div id="game-container">
         <!-- HUD Principal -->
         <header id="hud" class="glass">
-            <div id="game-title">BOX FIGHT 2026</div>
-            <div class="stats">
+            <div id="left-hud">
+                <div id="game-title">BOX FIGHT 2026 <span id="phase-display">FASE 1</span> <span
+                        style="font-size: 0.6rem; color: #fbbf24; opacity: 0.5;">v2.0</span></div>
+                <div class="stat-item health-container">
+                    <span class="label">MOEDAS: <span id="coin-count" style="color: #fbbf24;">0</span></span>
+                </div>
                 <div class="stat-item health-container">
                     <span class="label">SANGUE JOGADOR</span>
                     <div class="health-bar">
@@ -33,16 +37,16 @@
                     </div>
                 </div>
                 <div class="stat-item ammo-hud">
-                    <span id="ammo-count">10</span> / <span id="total-ammo">20</span>
+                    <span id="ammo-count">10</span> / <span id="total-ammo">30</span>
                 </div>
-                <div class="stat-item coin-container">
-                    <span class="label">MOEDAS</span>
-                    <div id="coin-count" class="coin-hud">0</div>
-                </div>
-                <div class="stat-item health-container">
-                    <span class="label">SANGUE BOT</span>
-                    <div class="health-bar bot-health">
-                        <div id="bot-health-fill" class="health-fill"></div>
+            </div>
+
+            <!-- BARRA DO BOT NO TOPO DIREITO -->
+            <div id="right-hud">
+                <div class="stat-item bot-health-hud">
+                    <span class="label" style="color: #ff0000; text-align: right;">SANGUE DO BOT</span>
+                    <div class="health-bar bot-hb" style="background: #440000; border: 2px solid #ff0000;">
+                        <div id="bot-health-fill" class="health-fill" style="background: #00ff00; width: 100%;"></div>
                     </div>
                 </div>
             </div>
@@ -67,6 +71,14 @@
             </div>
         </div>
 
+        <div id="pause-overlay" class="overlay hidden">
+            <div class="content glass">
+                <h1>PAUSADO</h1>
+                <p>O combate parou momentaneamente.</p>
+                <button id="resume-btn" class="glow-btn">VOLTAR AO COMBATE</button>
+            </div>
+        </div>
+
         <div id="victory-overlay" class="overlay hidden">
             <div class="content no-bg">
                 <h2 class="victory-text animate-bounce">VITÓRIA!</h2>
@@ -83,6 +95,7 @@
         <!-- Loja Overlay -->
         <div id="shop-overlay" class="overlay hidden">
             <div class="content glass shop-content">
+<<<<<<< HEAD
                 <h1 style="color: #fbbf24; margin-bottom: 30px;">LOJA DE ARMAS</h1>
                 <div class="shop-grid">
                     <div class="shop-card">
@@ -99,6 +112,38 @@
                     </div>
                 </div>
                 <button id="close-shop" class="glow-btn" style="background: #ef4444; margin-top: 30px;">VOLTAR</button>
+=======
+                <h1 class="shop-title" style="color: #fbbf24; font-size: 2.5rem; margin-bottom: 20px;">ARSENAL DE
+                    COMBATE</h1>
+                <div class="shop-items" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                    <div class="shop-item">
+                        <div class="weapon-preview" style="background-image: url('assets/pistol.png');"></div>
+                        <h3>PISTOLA</h3>
+                        <p>Precisão total</p>
+                        <button id="buy-pistol" class="glow-btn">EQUIPAR</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="weapon-preview" style="background-image: url('assets/rifle.png');"></div>
+                        <h3>RIFLE</h3>
+                        <p>Totalmente automático</p>
+                        <button id="buy-rifle" class="glow-btn">COMPRAR (50)</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="weapon-preview" style="background-image: url('assets/shotgun.png');"></div>
+                        <h3>ESCRAVOLTA</h3>
+                        <p>Dano em área</p>
+                        <button id="buy-shotgun" class="glow-btn">COMPRAR (80)</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="weapon-preview" style="background-image: url('assets/medkit.png');"></div>
+                        <h3>KIT MÉDICO</h3>
+                        <p>Recuperar HP</p>
+                        <button id="buy-medkit" class="glow-btn" style="background: #22c55e;">USAR (30)</button>
+                    </div>
+                </div>
+                <button id="close-shop" class="glow-btn"
+                    style="background: #ef4444; width: 100%; margin-top: 20px;">VOLTAR À BATALHA</button>
+>>>>>>> ea74bf9a975600023f594491394aaf2ac58566f6
             </div>
         </div>
 
