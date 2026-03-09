@@ -45,9 +45,9 @@ let solidObjects = [];
 let obstacleBoxes = [];
 
 // --- ÁUDIO ---
-const sfxShot = new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_783d10a102.mp3');
-const sfxClick = new Audio('assets/click.mp3');
-const sfxReload = new Audio('assets/reload.mp3');
+const sfxShot = new Audio('https://www.soundjay.com/weapon/gun-shot-1.mp3');
+const sfxClick = new Audio('https://www.soundjay.com/button/button-3.mp3');
+const sfxReload = new Audio('https://www.soundjay.com/button/button-10.mp3');
 const sfxVictory = document.getElementById('victory-audio');
 
 sfxShot.volume = 1.0;
@@ -139,23 +139,31 @@ function generateMap() {
 
     // Árvores (Tronco + Copa)
     for (let i = 0; i < 25; i++) {
+        const x = (Math.random() - 0.5) * 120;
+        const z = (Math.random() - 0.5) * 120;
+        if (Math.abs(x) < 5 && Math.abs(z - 15) < 5) continue; // Zona de segurança no spawn (0, 15)
+
         const tree = new THREE.Group();
         const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 5), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
         trunk.position.y = 2.5;
         const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 6, 8), new THREE.MeshStandardMaterial({ color: 0x0a5d0a }));
         leaves.position.y = 7;
         tree.add(trunk, leaves);
-        addObstacle(tree, (Math.random() - 0.5) * 120, (Math.random() - 0.5) * 120);
+        addObstacle(tree, x, z);
     }
 
     // Pedras Altas (Cinza)
     for (let i = 0; i < 18; i++) {
+        const x = (Math.random() - 0.5) * 110;
+        const z = (Math.random() - 0.5) * 110;
+        if (Math.abs(x) < 8 && Math.abs(z - 15) < 8) continue; // Zona de segurança no spawn
+
         const h = 6 + Math.random() * 6;
         const rock = new THREE.Mesh(
             new THREE.BoxGeometry(5, h, 5),
             new THREE.MeshStandardMaterial({ color: 0x555555 })
         );
-        addObstacle(rock, (Math.random() - 0.5) * 110, (Math.random() - 0.5) * 110, h / 2);
+        addObstacle(rock, x, z, h / 2);
     }
 }
 
@@ -443,6 +451,7 @@ function startPhase(phase) {
     for (let i = 0; i < count; i++) botsArray.push(new ArenaBot());
 
     controls.lock();
+    console.log(`Fase ${phase} iniciada. Personagem spawnado em (0, 1.7, 15)`);
     updateUI();
     createWeaponModel();
 }
@@ -507,9 +516,12 @@ window.addEventListener('mouseup', e => { if (e.button === 0) isMouseDown = fals
 
 document.getElementById('start-btn').onclick = () => startPhase(1);
 document.getElementById('retry-btn').onclick = () => startPhase(currentPhase);
-document.getElementById('next-phase-btn').onclick = () => startPhase(2);
+document.getElementById('next-phase-btn').onclick = () => startPhase(currentPhase + 1);
 document.getElementById('reset-btn').onclick = () => {
-    coins = 0; currentWeapon = 'MAGNUM'; startPhase(1);
+    coins = 0;
+    UNLOCKED_WEAPONS.length = 1;
+    currentWeapon = 'MAGNUM';
+    startPhase(1);
 };
 document.getElementById('resume-btn').onclick = () => controls.lock();
 document.getElementById('buy-medkit').onclick = () => {
