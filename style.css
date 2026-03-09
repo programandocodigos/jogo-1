@@ -115,7 +115,6 @@ body {
     height: 25px;
 }
 
-<<<<<<< HEAD
 .ammo-hud {
     font-size: 1.5rem;
     color: var(--primary);
@@ -139,8 +138,6 @@ body {
     font-weight: 900;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
-=======
->>>>>>> 51d05c018064a73f1e82b78df6371d17fb8054fa
 
 /* Overlays */
 .overlay {

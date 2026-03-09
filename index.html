@@ -6,32 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Box Fight 3D | Meme 67 Edition</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nosifer&display=swap"
         rel="stylesheet">
     <script type="importmap">
-        {
-          "imports": {
-            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-          }
-        }
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
     </script>
 </head>
 
 <body>
     <div id="game-container">
-        <!-- HUD Principal -->
         <header id="hud" class="glass">
-            <div id="left-hud">
-                <div id="game-title">BOX FIGHT 2026 <span id="phase-display">FASE 1</span></div>
+            <div id="game-title">BOX FIGHT 2026 <span id="phase-display">FASE 1</span></div>
+            <div class="stats">
                 <div class="stat-item health-container">
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <div>
                             <span class="label">SANGUE JOGADOR</span>
                             <div class="health-bar">
-                                <div id="player-health-fill" class="health-fill"></div>
+                                <div id="player-health-fill" class="health-fill" style="width: 100%;"></div>
                             </div>
                         </div>
                         <div class="coin-container-integrated">
@@ -40,61 +32,41 @@
                         </div>
                     </div>
                 </div>
-                <div class="stat-item ammo-hud">
-                    <span id="ammo-count">10</span> / <span id="total-ammo">30</span>
-                </div>
-                <div id="bots-health-container" class="stat-item health-container">
-                    <!-- Barras de vida dos bots (dinâmico) -->
-                </div>
+                <div class="stat-item ammo-hud"><span id="ammo-count">10</span> / <span id="total-ammo">30</span></div>
             </div>
         </header>
 
-        <!-- Mira -->
         <div id="crosshair"></div>
 
-        <!-- Overlays -->
         <div id="start-overlay" class="overlay">
             <div class="content glass">
                 <h1>BOX FIGHT 3D</h1>
-                <p>O Humano voltou com mira ajustada. Sobreviva!</p>
+                <p>Mova-se com WASD e Atire com Mouse. Teclas 1 (Magnum) e 2 (Rifle).</p>
                 <button id="start-btn" class="glow-btn">ENTRAR NA ARENA</button>
             </div>
         </div>
 
         <div id="game-over-overlay" class="overlay hidden">
             <div class="content glass">
-                <h1 class="blood-text blood-dripping">DERROTADO</h1>
-                <button id="retry-btn" class="glow-btn">REENTRAR</button>
+                <h1 class="blood-text">DERROTADO</h1>
+                <button id="retry-btn" class="glow-btn" onclick="location.reload()">REENTRAR</button>
             </div>
         </div>
 
         <div id="pause-overlay" class="overlay hidden">
             <div class="content glass">
                 <h1>PAUSADO</h1>
-                <p>O combate parou momentaneamente.</p>
-                <button id="resume-btn" class="glow-btn">VOLTAR AO COMBATE</button>
+                <p>Clique na tela para voltar.</p>
             </div>
         </div>
 
         <div id="victory-overlay" class="overlay hidden">
             <div class="content no-bg">
-                <h2 class="victory-text animate-bounce">VITÓRIA!</h2>
-                <p>Meme 67 Ativado... Você ganhou 60 moedas!</p>
-                <div class="victory-btns">
-                    <button id="next-phase-btn" class="glow-btn">PRÓXIMA FASE</button>
-                    <button id="shop-btn-vic" class="glow-btn" style="background: #22c55e;">LOJA</button>
-                    <button id="reset-btn" class="glow-btn"
-                        style="display: block; margin: 20px auto;">RECOMEÇAR</button>
-                </div>
+                <h2 class="victory-text">VITÓRIA!</h2>
+                <button class="glow-btn" onclick="location.reload()">PRÓXIMA FASE</button>
             </div>
         </div>
-
-        <!-- Áudio Meme 67 -->
-        <audio id="victory-audio">
-            <source src="assets/meme67.mp3" type="audio/mpeg">
-        </audio>
     </div>
-
     <script type="module" src="game.js"></script>
 </body>
 
