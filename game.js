@@ -27,7 +27,7 @@ const keys = {};
 
 // --- ÁUDIO (SFX) ---
 const sfx = {
-    shot: new Audio('assets/tiro.mp3'),
+    shot: new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_783d10a102.mp3'),
     click: new Audio('assets/click.mp3'), // Som de gatilho vazio
     reload: new Audio('assets/reload.mp3')
 };
