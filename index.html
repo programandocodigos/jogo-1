@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Box Fight 3D | Ultimate Edition</title>
+    <title>Box Fight 3D | Meme 67 Edition</title>
+    <!-- CSS INTEGRADO -->
     <style>
         :root {
             --bg-dark: #020205;
@@ -13,9 +14,7 @@
             --secondary: #ff00ff;
             --blood: #8B0000;
             --text: #f8fafc;
-            --glass: rgba(10, 10, 15, 0.7);
-            --font-outfit: 'Outfit', sans-serif;
-            --font-nosifer: 'Nosifer', cursive;
+            --glass: rgba(10, 10, 15, 0.8);
         }
 
         * {
@@ -28,7 +27,7 @@
         body {
             background: var(--bg-dark);
             color: var(--text);
-            font-family: var(--font-outfit);
+            font-family: 'Outfit', sans-serif;
             overflow: hidden;
             height: 100vh;
         }
@@ -37,7 +36,6 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            overflow: hidden;
         }
 
         /* HUD */
@@ -52,22 +50,9 @@
             align-items: center;
             background: var(--glass);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             z-index: 50;
-        }
-
-        #game-title {
-            font-weight: 900;
-            letter-spacing: 1px;
-            color: var(--primary);
-            font-size: 1.2rem;
-        }
-
-        .stats {
-            display: flex;
-            gap: 30px;
-            align-items: center;
         }
 
         .stat-item {
@@ -96,43 +81,33 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(90deg, #ff0000, #ff5555);
-            transition: width 0.3s ease;
-        }
-
-        .coin-container-integrated {
-            border-left: 1px solid rgba(255, 255, 255, 0.2);
-            padding-left: 20px;
+            transition: width 0.3s;
         }
 
         .coin-value {
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             color: #ffd700;
             font-weight: 900;
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
 
         .ammo-hud {
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             color: var(--primary);
             font-weight: 900;
-            font-family: monospace;
         }
 
-        /* Bot HUD (Top Right) */
+        /* Bot HUD */
         #bot-hud {
             position: absolute;
             top: 100px;
             right: 20px;
             background: var(--glass);
-            padding: 10px 15px;
+            padding: 10px;
             border-radius: 8px;
-            border: 1px solid rgba(255, 0, 0, 0.3);
+            border: 1px solid rgba(255, 0, 255, 0.3);
             display: none;
             z-index: 40;
-        }
-
-        .bot-health-fill {
-            background: linear-gradient(90deg, #ff00ff, #8800ff);
         }
 
         /* Crosshair */
@@ -140,32 +115,20 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 24px;
-            height: 24px;
-            border: 2px solid rgba(255, 255, 255, 0.8);
+            width: 20px;
+            height: 20px;
+            border: 2px solid #fff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            pointer-events: none;
             z-index: 100;
-        }
-
-        #crosshair::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 4px;
-            height: 4px;
-            background: white;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
 
         /* Overlays */
         .overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -177,30 +140,6 @@
             display: none !important;
         }
 
-        .content {
-            padding: 40px;
-            border-radius: 20px;
-            max-width: 500px;
-        }
-
-        .glass {
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        h1 {
-            font-size: 3rem;
-            color: var(--primary);
-            margin-bottom: 15px;
-        }
-
-        p {
-            margin-bottom: 25px;
-            opacity: 0.8;
-            font-size: 1.1rem;
-        }
-
         .glow-btn {
             background: var(--primary);
             color: #000;
@@ -209,45 +148,15 @@
             font-weight: 900;
             border-radius: 10px;
             cursor: pointer;
-            transition: 0.3s;
             text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .glow-btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 0 30px var(--primary);
-        }
-
-        .blood-text {
-            font-family: var(--font-nosifer);
-            color: var(--blood);
-            font-size: 4rem;
-            margin-bottom: 30px;
-        }
-
-        .victory-text {
-            font-size: 5rem;
-            font-weight: 900;
-            color: #fbbf24;
-            text-shadow: 0 0 30px #fbbf24;
-            animation: bounce 0.6s infinite alternate;
-        }
-
-        @keyframes bounce {
-            from {
-                transform: translateY(0);
-            }
-
-            to {
-                transform: translateY(-20px);
-            }
+            box-shadow: 0 0 20px var(--primary);
         }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nosifer&display=swap"
-        rel="stylesheet">
+
     <script type="importmap">
         { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
     </script>
@@ -255,37 +164,26 @@
 
 <body>
     <div id="game-container">
-        <!-- Main HUD -->
+        <!-- HUD -->
         <header id="hud" class="glass">
-            <div id="game-title">BOX FIGHT 2026 <span id="phase-display"
-                    style="opacity: 0.6; font-size: 0.8rem; margin-left: 10px;">FASE 1</span></div>
-            <div class="stats">
-                <div class="stat-item health-container">
-                    <div style="display: flex; align-items: center; gap: 20px;">
-                        <div>
-                            <span class="label">SANGUE JOGADOR</span>
-                            <div class="health-bar">
-                                <div id="player-health-fill" class="health-fill"></div>
-                            </div>
-                        </div>
-                        <div class="coin-container-integrated">
-                            <span class="label" style="color: #ffd700;">💰 Moedas:</span>
-                            <div id="coin-count" class="coin-value">0</div>
-                        </div>
-                    </div>
+            <div>
+                <span class="label">SANGUE JOGADOR</span>
+                <div class="health-bar">
+                    <div id="player-health-fill" class="health-fill"></div>
                 </div>
-                <div class="stat-item">
-                    <span class="label">AMMO</span>
-                    <div class="ammo-hud"><span id="ammo-count">10</span>/<span id="total-ammo">30</span></div>
-                </div>
+                <div style="margin-top: 10px;">💰 Moedas: <span id="coin-count" class="coin-value">0</span></div>
+            </div>
+            <div class="stat-item" style="align-items: flex-end;">
+                <span class="label">MUNIÇÃO</span>
+                <div class="ammo-hud"><span id="ammo-count">10</span>/30</div>
             </div>
         </header>
 
-        <!-- Bot Health (Top Right) -->
-        <div id="bot-hud" class="glass">
-            <span class="label" style="color: #ff4444;">HUMANOIDE HP</span>
-            <div class="health-bar">
-                <div id="bot-health-fill" class="health-fill bot-health-fill"></div>
+        <!-- Bot HUD -->
+        <div id="bot-hud">
+            <span class="label" style="color: #ff00ff;">BOT HP</span>
+            <div class="health-bar" style="width: 150px;">
+                <div id="bot-health-fill" class="health-fill" style="background: #ff00ff;"></div>
             </div>
         </div>
 
@@ -293,275 +191,160 @@
 
         <!-- Overlays -->
         <div id="start-overlay" class="overlay">
-            <div class="content glass">
-                <h1>BOX FIGHT 3D</h1>
-                <p>Controles: WASD para andar, Mouse para olhar e atirar.<br>Teclas 1 e 2 mudam armas. R para
-                    recarregar.</p>
+            <div>
+                <h1 style="font-size: 3.5rem; color: #fbbf24;">BOX FIGHT 3D</h1>
+                <p style="margin: 20px 0; opacity: 0.7;">WASD para Correr | Mouse para Atirar | Tecla 2 Rifle</p>
                 <button id="start-btn" class="glow-btn">ENTRAR NA ARENA</button>
             </div>
         </div>
 
-        <div id="game-over-overlay" class="overlay hidden">
-            <div class="content glass">
-                <h1 class="blood-text">DERROTADO</h1>
-                <button class="glow-btn" onclick="location.reload()">REENTRAR</button>
-            </div>
-        </div>
-
         <div id="victory-overlay" class="overlay hidden">
-            <div class="content">
-                <h2 class="victory-text">VITÓRIA!</h2>
-                <p style="margin-top: 20px;">Você ganhou 60 moedas.</p>
-                <button class="glow-btn" onclick="location.reload()">PRÓXIMA FASE</button>
+            <div>
+                <h1 style="color: #ffd700; font-size: 4rem;">VITÓRIA!</h1>
+                <p>+60 Moedas Recebidas</p>
+                <button class="glow-btn" onclick="location.reload()" style="margin-top: 20px;">PRÓXIMA FASE</button>
             </div>
         </div>
     </div>
 
+    <!-- LOGICA INTEGRADA -->
     <script type="module">
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- CONFIGURAÇÕES ---
+        // --- CONFIG ---
         const STATS = {
             PLAYER: {
-                HP: 100, SPEED: 0.16, RELOAD_TIME: 2500,
+                HP: 100, SPEED: 0.16, RELOAD: 2500,
                 WEAPONS: {
-                    MAGNUM: { DAMAGE: 30, MAG_SIZE: 10, RESERVE: 30, RATE: 400, AUTO: false, SFX: 'https://cdn.pixabay.com/audio/2022/03/10/audio_783d10a102.mp3' },
-                    RIFLE: { DAMAGE: 18, MAG_SIZE: 20, RESERVE: 60, RATE: 100, AUTO: true, SFX: 'https://cdn.pixabay.com/audio/2022/03/24/audio_349d97f904.mp3' }
+                    MAGNUM: { DMG: 30, MAG: 10, RATE: 400, AUTO: false, SFX: 'https://cdn.pixabay.com/audio/2022/03/10/audio_783d10a102.mp3' },
+                    RIFLE: { DMG: 18, MAG: 20, RATE: 100, AUTO: true, SFX: 'https://cdn.pixabay.com/audio/2022/03/24/audio_349d97f904.mp3' }
                 }
             },
-            BOT: { HP: 100, DAMAGE: 40, SPEED: 0.09, ACCURACY: 0.6, STOP_DIST: 8 }
+            BOT: { HP: 100, DMG: 40, SPEED: 0.08, ACCURACY: 0.6 }
         };
 
-        // --- ESTADO DO JOGO ---
-        let gameState = 'START';
-        let currentPhase = 1, coins = 0, playerHp = 100;
-        let currentWeapon = 'MAGNUM', isMouseDown = false, isReloading = false;
-        let currentMag = 10, reserveAmmo = 30, lastShotTime = 0;
-
+        // --- STATE ---
+        let gameState = 'START', coins = 0, playerHp = 100;
+        let weapon = 'MAGNUM', ammo = 10, isMouseDown = false;
+        let lastShot = 0, bots = [], obstacles = [], obstacleBoxes = [];
         const keys = {};
-        let bots = [], solidObjects = [], obstacleBoxes = [];
 
-        // --- SETUP MOTOR ---
+        // --- ENGINE ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x020205);
-        scene.fog = new THREE.FogExp2(0x020205, 0.015);
-
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const recoilGroup = new THREE.Group();
-        camera.add(recoilGroup);
-        scene.add(camera);
+        camera.add(recoilGroup); scene.add(camera);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
         document.getElementById('game-container').appendChild(renderer.domElement);
 
         const controls = new PointerLockControls(camera, document.body);
 
-        // ILUMINAÇÃO (FIX TELA PRETA)
-        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambient);
+        // LUZES (CRÍTICO)
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
         const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-        sun.position.set(30, 50, 10);
-        sun.castShadow = true;
+        sun.position.set(10, 20, 10);
         scene.add(sun);
 
-        // --- MAPA ---
-        function generateMap() {
-            solidObjects.forEach(o => scene.remove(o));
-            solidObjects = []; obstacleBoxes = [];
+        // MAPA
+        function initMap() {
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(150, 150), new THREE.MeshStandardMaterial({ color: 0x1a3a1a }));
+            floor.rotation.x = -Math.PI / 2; scene.add(floor);
 
-            // Chão Verde
-            const floor = new THREE.Mesh(
-                new THREE.PlaneGeometry(200, 200),
-                new THREE.MeshStandardMaterial({ color: 0x1a3a1a, roughness: 0.8 })
-            );
-            floor.rotation.x = -Math.PI / 2;
-            floor.receiveShadow = true;
-            scene.add(floor);
-
-            const addObj = (mesh, x, z, y = 0) => {
-                mesh.position.set(x, y, z);
-                mesh.castShadow = true; mesh.receiveShadow = true;
-                scene.add(mesh);
-                solidObjects.push(mesh);
-                obstacleBoxes.push(new THREE.Box3().setFromObject(mesh));
-            };
-
-            // Árvores
             for (let i = 0; i < 20; i++) {
-                const x = (Math.random() - 0.5) * 120, z = (Math.random() - 0.5) * 120;
-                if (Math.abs(x) < 10 && Math.abs(z - 12) < 10) continue;
-                const tree = new THREE.Group();
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 5), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
-                trunk.position.y = 2.5;
-                const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 6, 8), new THREE.MeshStandardMaterial({ color: 0x0a5d0a }));
-                leaves.position.y = 7;
-                tree.add(trunk, leaves);
-                addObj(tree, x, z);
-            }
-
-            // Pedras
-            for (let i = 0; i < 15; i++) {
-                const x = (Math.random() - 0.5) * 100, z = (Math.random() - 0.5) * 100;
-                if (Math.abs(x) < 10 && Math.abs(z - 12) < 10) continue;
-                const h = 4 + Math.random() * 6;
-                const rock = new THREE.Mesh(new THREE.BoxGeometry(4, h, 4), new THREE.MeshStandardMaterial({ color: 0x444444 }));
-                addObj(rock, x, z, h / 2);
+                const rock = new THREE.Mesh(new THREE.BoxGeometry(3, 6, 3), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+                rock.position.set((Math.random() - 0.5) * 100, 3, (Math.random() - 0.5) * 100);
+                if (rock.position.distanceTo(new THREE.Vector3(0, 0, 10)) < 8) rock.position.x += 15;
+                scene.add(rock);
+                obstacles.push(rock);
+                obstacleBoxes.push(new THREE.Box3().setFromObject(rock));
             }
         }
 
-        // --- BOT HUMANOIDE ---
-        class ArenaBot {
+        // ARMA
+        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.7), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+        gun.position.set(0.4, -0.3, -0.6);
+        recoilGroup.add(gun);
+
+        // BOT
+        class Bot {
             constructor() {
-                this.group = new THREE.Group();
-                const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.3), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-                torso.position.y = 1.4;
-                const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0xe0ac69 }));
-                head.position.y = 2.1;
-                const lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, 0.2), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-                lLeg.position.set(-0.2, 0.45, 0);
-                const rLeg = lLeg.clone(); rLeg.position.x = 0.2;
-
-                this.rArm = new THREE.Group();
-                const armMesh = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.8, 0.15), new THREE.MeshStandardMaterial({ color: 0xe0ac69 }));
-                armMesh.position.y = -0.4;
-                const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.5), new THREE.MeshBasicMaterial({ color: 0x000 }));
-                gun.position.set(0, -0.7, 0.2);
-                this.rArm.add(armMesh, gun);
-                this.rArm.position.set(0.4, 1.8, 0);
-
-                this.group.add(torso, head, lLeg, rLeg, this.rArm);
-                scene.add(this.group);
-                this.hp = 100;
-                this.respawn();
+                this.mesh = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.4), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+                body.position.y = 0.9; this.mesh.add(body);
+                scene.add(this.mesh);
+                this.hp = 100; this.lastShot = 0;
+                this.reset();
             }
-            respawn() {
-                this.hp = 100;
-                this.group.visible = true;
-                this.group.position.set((Math.random() - 0.5) * 50, 0, (Math.random() - 0.5) * 40 - 25);
+            reset() {
+                this.mesh.position.set((Math.random() - 0.5) * 40, 0, (Math.random() - 0.5) * 40 - 20);
+                this.mesh.visible = true; this.hp = 100;
                 document.getElementById('bot-hud').style.display = 'block';
             }
             update() {
-                if (!this.group.visible || gameState !== 'PLAYING') return;
-                const dist = this.group.position.distanceTo(camera.position);
-                this.group.lookAt(camera.position.x, 0, camera.position.z);
-                this.rArm.lookAt(camera.position); this.rArm.rotation.x += Math.PI / 2;
+                if (!this.mesh.visible || gameState !== 'PLAYING') return;
+                this.mesh.lookAt(camera.position.x, 0, camera.position.z);
+                const dist = this.mesh.position.distanceTo(camera.position);
 
-                const toPlayer = new THREE.Vector3().subVectors(camera.position, this.group.position).normalize();
-
-                // Strafe + Chase
-                const time = Date.now() * 0.001;
-                const strafe = Math.sin(time * 2) * 2;
-                if (dist > STATS.BOT.STOP_DIST) {
-                    const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), toPlayer).normalize();
-                    const move = toPlayer.clone().multiplyScalar(STATS.BOT.SPEED).add(side.multiplyScalar(strafe * 0.01));
-                    this.group.position.add(move);
+                if (dist > 7) {
+                    const dir = new THREE.Vector3().subVectors(camera.position, this.mesh.position).normalize();
+                    this.mesh.position.add(new THREE.Vector3(dir.x, 0, dir.z).multiplyScalar(STATS.BOT.SPEED));
                 }
 
-                // Tiro do Bot
-                if (Date.now() - (this.lastShot || 0) > 1600) {
+                if (Date.now() - this.lastShot > 1800) {
                     this.lastShot = Date.now();
                     if (Math.random() < STATS.BOT.ACCURACY) {
-                        playerHp -= STATS.BOT.DAMAGE;
-                        updateUI();
-                        if (playerHp <= 0) die();
+                        playerHp -= STATS.BOT.DMG;
+                        updateHUD();
+                        if (playerHp <= 0) location.reload();
                     }
                 }
             }
         }
 
-        // --- ARMA FPS ---
-        const gunContainer = new THREE.Group();
-        recoilGroup.add(gunContainer);
-        function updateWeaponModel() {
-            gunContainer.clear();
-            const mat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 });
-            const model = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, currentWeapon === 'MAGNUM' ? 0.5 : 0.9), mat);
-            model.position.set(0.4, -0.3, -0.6);
-            gunContainer.add(model);
-        }
+        // TIRO
+        function shoot() {
+            if (gameState !== 'PLAYING' || ammo <= 0) return;
+            const w = STATS.PLAYER.WEAPONS[weapon];
+            if (Date.now() - lastShot < w.RATE) return;
 
-        // --- MECÂNICA ---
-        function handleShoot() {
-            if (isReloading || gameState !== 'PLAYING' || currentMag <= 0) {
-                if (currentMag <= 0 && !isReloading) reload();
-                return;
-            }
-            const weapon = STATS.PLAYER.WEAPONS[currentWeapon];
-            if (Date.now() - lastShotTime < weapon.RATE) return;
-
-            lastShotTime = Date.now();
-            currentMag--;
-            updateUI();
-
-            // Som de tiro (CDN)
-            const shootAudio = new Audio(weapon.SFX);
-            shootAudio.volume = 0.5;
-            shootAudio.play().catch(() => { });
+            lastShot = Date.now(); ammo--; updateHUD();
+            new Audio(w.SFX).play().catch(() => { });
 
             // Recoil
-            gunContainer.position.z += 0.15;
-            setTimeout(() => gunContainer.position.z = 0, 60);
+            gun.position.z += 0.1; setTimeout(() => gun.position.z = -0.6, 50);
 
             const ray = new THREE.Raycaster();
             ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const obsHits = ray.intersectObjects(solidObjects);
+            const obsHits = ray.intersectObjects(obstacles);
             const obsDist = obsHits.length > 0 ? obsHits[0].distance : Infinity;
 
             bots.forEach(b => {
-                if (b.group.visible) {
-                    const hit = ray.intersectObject(b.group, true);
+                if (b.mesh.visible) {
+                    const hit = ray.intersectObject(b.mesh, true);
                     if (hit.length > 0 && hit[0].distance < obsDist) {
-                        b.hp -= weapon.DAMAGE;
+                        b.hp -= w.DMG;
                         document.getElementById('bot-health-fill').style.width = b.hp + '%';
                         if (b.hp <= 0) {
-                            b.group.visible = false;
-                            coins += 60;
-                            updateUI();
-                            checkVictory();
+                            b.mesh.visible = false; coins += 60;
+                            updateHUD();
+                            document.getElementById('victory-overlay').classList.remove('hidden');
+                            controls.unlock();
                         }
                     }
                 }
             });
         }
 
-        function reload() {
-            if (isReloading || reserveAmmo <= 0) return;
-            isReloading = true;
-            document.getElementById('ammo-count').innerText = "CALMA...";
-            setTimeout(() => {
-                const weapon = STATS.PLAYER.WEAPONS[currentWeapon];
-                const transfer = Math.min(weapon.MAG_SIZE - currentMag, reserveAmmo);
-                currentMag += transfer; reserveAmmo -= transfer;
-                isReloading = false; updateUI();
-            }, STATS.PLAYER.RELOAD_TIME);
-        }
-
-        function updateUI() {
+        function updateHUD() {
             document.getElementById('player-health-fill').style.width = Math.max(0, playerHp) + '%';
             document.getElementById('coin-count').innerText = coins;
-            document.getElementById('ammo-count').innerText = currentMag;
-            document.getElementById('total-ammo').innerText = reserveAmmo;
+            document.getElementById('ammo-count').innerText = ammo;
         }
 
-        function checkVictory() {
-            if (bots.every(b => !b.group.visible)) {
-                gameState = 'VICTORY';
-                document.getElementById('victory-overlay').classList.remove('hidden');
-                document.getElementById('bot-hud').style.display = 'none';
-                controls.unlock();
-            }
-        }
-
-        function die() {
-            gameState = 'GAMEOVER';
-            document.getElementById('game-over-overlay').classList.remove('hidden');
-            controls.unlock();
-        }
-
-        // --- LOOP ---
         function loop() {
             requestAnimationFrame(loop);
             if (gameState === 'PLAYING') {
@@ -569,6 +352,7 @@
                 const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
                 const r = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
                 f.y = 0; r.y = 0; f.normalize(); r.normalize();
+
                 if (keys['KeyW']) mv.add(f); if (keys['KeyS']) mv.sub(f);
                 if (keys['KeyA']) mv.sub(r); if (keys['KeyD']) mv.add(r);
 
@@ -578,20 +362,20 @@
                     if (!obstacleBoxes.some(b => b.intersectsBox(pBox))) camera.position.copy(next);
                 }
 
-                if (isMouseDown && STATS.PLAYER.WEAPONS[currentWeapon].AUTO) handleShoot();
+                if (isMouseDown && STATS.PLAYER.WEAPONS[weapon].AUTO) shoot();
                 bots.forEach(b => b.update());
             }
             renderer.render(scene, camera);
         }
 
+        // INPUTS
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
-            if (e.code === 'Digit1') { currentWeapon = 'MAGNUM'; updateWeaponModel(); updateUI(); }
-            if (e.code === 'Digit2') { currentWeapon = 'RIFLE'; updateWeaponModel(); updateUI(); }
-            if (e.code === 'KeyR') reload();
+            if (e.code === 'Digit1') { weapon = 'MAGNUM'; ammo = 10; updateHUD(); }
+            if (e.code === 'Digit2') { weapon = 'RIFLE'; ammo = 20; updateHUD(); }
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
-        window.addEventListener('mousedown', () => { isMouseDown = true; handleShoot(); });
+        window.addEventListener('mousedown', () => { isMouseDown = true; shoot(); });
         window.addEventListener('mouseup', () => isMouseDown = false);
 
         document.getElementById('start-btn').onclick = () => {
@@ -599,15 +383,11 @@
             document.getElementById('start-overlay').classList.add('hidden');
             camera.position.set(0, 1.7, 10);
             controls.lock();
+            if (bots.length === 0) bots.push(new Bot());
         };
 
-        // --- START ---
-        generateMap();
-        updateWeaponModel();
-        bots = [new ArenaBot()];
+        initMap();
         loop();
-
-        // Responsive
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
