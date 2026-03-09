@@ -79,7 +79,12 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(90deg, #ff0000, #ff5555);
-            transition: width 0.3s;
+            transition: width 0.3s ease;
+        }
+
+        .coin-container-integrated {
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            padding-left: 20px;
         }
 
         .coin-value {
@@ -96,7 +101,6 @@
             font-family: monospace;
         }
 
-        /* Bot HUD (Top Right) */
         #bot-hud {
             position: absolute;
             top: 100px;
@@ -104,7 +108,7 @@
             background: var(--glass);
             padding: 10px 15px;
             border-radius: 8px;
-            border: 1px solid rgba(255, 0, 255, 0.3);
+            border: 1px solid rgba(255, 0, 0, 0.3);
             display: none;
             z-index: 40;
         }
@@ -113,7 +117,6 @@
             background: linear-gradient(90deg, #ff00ff, #8800ff);
         }
 
-        /* Crosshair */
         #crosshair {
             position: absolute;
             top: 50%;
@@ -139,7 +142,6 @@
             transform: translate(-50%, -50%);
         }
 
-        /* Overlays */
         .overlay {
             position: absolute;
             inset: 0;
@@ -167,7 +169,7 @@
         h1 {
             font-size: 3rem;
             color: var(--primary);
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .glow-btn {
@@ -189,18 +191,35 @@
             box-shadow: 0 0 30px var(--primary);
         }
 
-        .shop-btn {
-            background: #10b981;
-            margin-top: 10px;
-        }
-
         .blood-text {
+            font-family: 'Nosifer', cursive;
             color: var(--blood);
             font-size: 4rem;
+            margin-bottom: 30px;
+        }
+
+        .victory-text {
+            font-size: 5rem;
             font-weight: 900;
+            color: #fbbf24;
+            text-shadow: 0 0 30px #fbbf24;
+            animation: bounce 0.6s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(-20px);
+            }
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nosifer&display=swap"
+        rel="stylesheet">
     <script type="importmap">
         { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
     </script>
@@ -208,24 +227,38 @@
 
 <body>
     <div id="game-container">
+        <!-- Main HUD -->
         <header id="hud" class="glass">
-            <div>
-                <span class="label">SANGUE JOGADOR</span>
-                <div class="health-bar">
-                    <div id="player-health-fill" class="health-fill"></div>
+            <div id="game-title">BOX FIGHT 2026 <span id="phase-display"
+                    style="opacity: 0.6; font-size: 0.8rem; margin-left: 10px;">FASE 1</span></div>
+            <div class="stats">
+                <div class="stat-item health-container">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div>
+                            <span class="label">SANGUE JOGADOR</span>
+                            <div class="health-bar">
+                                <div id="player-health-fill" class="health-fill"></div>
+                            </div>
+                        </div>
+                        <div class="coin-container-integrated">
+                            <span class="label" style="color: #ffd700;">💰 Moedas:</span>
+                            <div id="coin-count" class="coin-value">0</div>
+                        </div>
+                    </div>
                 </div>
-                <div style="margin-top: 10px;">💰 Moedas: <span id="coin-count" class="coin-value">0</span></div>
-            </div>
-            <div class="stat-item" style="align-items: flex-end;">
-                <span class="label">MUNIÇÃO</span>
-                <div class="ammo-hud"><span id="ammo-count">10</span>/<span id="reserve-display">30</span></div>
-                <div id="reload-msg" style="color: #ff4444; font-size: 0.7rem; font-weight: 900; height: 12px;"></div>
+                <div class="stat-item">
+                    <span class="label">MUNIÇÃO</span>
+                    <div class="ammo-hud"><span id="ammo-count">10</span>/<span id="reserve-display">30</span></div>
+                    <div id="reload-msg" style="color: #ff4444; font-size: 0.7rem; font-weight: 900; height: 12px;">
+                    </div>
+                </div>
             </div>
         </header>
 
-        <div id="bot-hud">
+        <!-- Bot Health (Top Right) -->
+        <div id="bot-hud" class="glass">
             <span class="label" style="color: #ff4444;">HUMANOIDE HP</span>
-            <div class="health-bar" style="width: 150px;">
+            <div class="health-bar">
                 <div id="bot-health-fill" class="health-fill bot-health-fill"></div>
             </div>
         </div>
@@ -234,27 +267,26 @@
 
         <!-- Overlays -->
         <div id="start-overlay" class="overlay">
-            <div class="content">
+            <div class="content glass">
                 <h1>BOX FIGHT 3D</h1>
-                <p style="margin-bottom: 25px; opacity: 0.8;">Mova-se com WASD, Atire com Mouse.<br>Teclas 1 e 2 trocam
-                    armas.</p>
+                <p>Mova-se com WASD, Atire com Mouse.<br>Teclas 1 e 2 trocam armas.</p>
                 <button id="start-btn" class="glow-btn">ENTRAR NA ARENA</button>
             </div>
         </div>
 
         <div id="game-over-overlay" class="overlay hidden">
-            <div class="content">
+            <div class="content glass">
                 <h1 class="blood-text">DERROTADO</h1>
-                <button onclick="location.reload()" class="glow-btn">REENTRAR</button>
+                <button class="glow-btn" onclick="location.reload()">REENTRAR</button>
             </div>
         </div>
 
         <div id="victory-overlay" class="overlay hidden">
-            <div class="content">
-                <h1 style="color: #ffd700;">VITÓRIA!</h1>
-                <p>+60 Moedas conquistadas.</p>
-                <button id="shop-btn" class="glow-btn shop-btn">LOJA: COMPRAR RIFLE (50)</button>
-                <button onclick="location.reload()" class="glow-btn"
+            <div class="content no-bg">
+                <h2 class="victory-text">VITÓRIA!</h2>
+                <p style="margin-top: 20px;">+60 Moedas conquistadas.</p>
+                <button id="shop-btn" class="glow-btn" style="background: #10b981;">LOJA: COMPRAR RIFLE (50)</button>
+                <button class="glow-btn" onclick="location.reload()"
                     style="display: block; width: 100%; background: #4b5563;">PRÓXIMA FASE</button>
             </div>
         </div>
@@ -269,8 +301,8 @@
             PLAYER: {
                 HP: 100, SPEED: 0.16, RELOAD_TIME: 2500,
                 WEAPONS: {
-                    MAGNUM: { DAMAGE: 30, MAG: 10, RESERVE: 30, RATE: 400, AUTO: false, COLOR: 0x555555 },
-                    RIFLE: { DAMAGE: 18, MAG: 20, RESERVE: 60, RATE: 100, AUTO: true, COLOR: 0x223322 }
+                    MAGNUM: { DAMAGE: 30, MAG: 10, RESERVE: 30, RATE: 400, AUTO: false, COLOR: 0x555555, SFX: 'https://cdn.pixabay.com/audio/2022/03/10/audio_783d10a102.mp3' },
+                    RIFLE: { DAMAGE: 18, MAG: 20, RESERVE: 60, RATE: 100, AUTO: true, COLOR: 0x223322, SFX: 'https://cdn.pixabay.com/audio/2022/03/24/audio_349d97f904.mp3' }
                 }
             },
             BOT: { HP: 100, DAMAGE: 40, SPEED: 0.08, ACCURACY: 0.6, STOP_DIST: 8 }
@@ -289,7 +321,8 @@
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const recoilGroup = new THREE.Group();
-        camera.add(recoilGroup); scene.add(camera);
+        camera.add(recoilGroup);
+        scene.add(camera);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -301,7 +334,8 @@
         // ILUMINAÇÃO
         scene.add(new THREE.AmbientLight(0xffffff, 0.5));
         const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-        sun.position.set(10, 20, 10); sun.castShadow = true;
+        sun.position.set(10, 20, 10);
+        sun.castShadow = true;
         scene.add(sun);
 
         // --- VIEWMODEL (ARMA E BRAÇO) ---
@@ -312,12 +346,12 @@
             weaponGroup.clear();
             const w = STATS.PLAYER.WEAPONS[weapon];
 
-            // Braço (Pele)
+            // Braço
             const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.2), new THREE.MeshStandardMaterial({ color: 0xe0ac69 }));
             arm.position.set(0.6, -0.4, -0.6);
             weaponGroup.add(arm);
 
-            // Arma (Metálico)
+            // Arma
             const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, weapon === 'MAGNUM' ? 0.5 : 0.9), new THREE.MeshStandardMaterial({ color: w.COLOR, metalness: 0.9 }));
             body.position.set(0.6, -0.2, -1.0);
 
@@ -329,9 +363,9 @@
 
         // --- MAPA ---
         function initMap() {
-            // Solo
             const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x1a3a1a }));
-            floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+            floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+            scene.add(floor);
 
             const addObj = (mesh, x, z) => {
                 mesh.position.set(x, mesh.geometry.parameters.height / 2, z);
@@ -340,10 +374,9 @@
                 obstacleBoxes.push(new THREE.Box3().setFromObject(mesh));
             };
 
-            // Pedras e Árvores
             for (let i = 0; i < 25; i++) {
                 const x = (Math.random() - 0.5) * 120, z = (Math.random() - 0.5) * 120;
-                if (Math.abs(x) < 8 && Math.abs(z - 12) < 8) continue;
+                if (Math.abs(x) < 10 && Math.abs(z - 15) < 10) continue;
 
                 if (Math.random() > 0.5) {
                     const h = 4 + Math.random() * 5;
@@ -399,13 +432,11 @@
                 const dist = this.group.position.distanceTo(camera.position);
                 const dir = new THREE.Vector3().subVectors(camera.position, this.group.position).normalize();
 
-                // Movimento Strafe
                 const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize();
                 const strafe = side.multiplyScalar(Math.sin(Date.now() * 0.002) * 0.05);
-                const forward = dir.multiplyScalar(dist > STATS.BOT.STOP_DIST ? STATS.BOT.SPEED : 0);
-                this.group.position.add(forward).add(strafe);
+                const moveForward = dir.multiplyScalar(dist > STATS.BOT.STOP_DIST ? STATS.BOT.SPEED : 0);
+                this.group.position.add(moveForward).add(strafe);
 
-                // Tiro do Bot
                 if (Date.now() - this.lastShot > 1600) {
                     this.lastShot = Date.now();
                     if (Math.random() < STATS.BOT.ACCURACY) {
@@ -427,7 +458,8 @@
 
             lastShot = Date.now(); ammo--; updateUI();
 
-            // Recoil Visual
+            new Audio(w.SFX).play().catch(() => { });
+
             recoilGroup.rotation.x += 0.08;
             weaponGroup.position.z += 0.15;
             setTimeout(() => { recoilGroup.rotation.x = 0; weaponGroup.position.z = 0; }, 60);
@@ -435,9 +467,9 @@
             const ray = new THREE.Raycaster();
             ray.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            const wallHits = ray.intersectObjects(scene.children, true).filter(h => h.object.type === 'Mesh' && h.object.parent !== camera);
-            const firstWall = wallHits.find(h => obstacleBoxes.some(box => box.containsPoint(h.point)));
-            const wallDist = firstWall ? firstWall.distance : Infinity;
+            const intersects = ray.intersectObjects(scene.children, true).filter(h => h.object.parent !== camera);
+            const wallHit = intersects.find(h => obstacleBoxes.some(box => box.containsPoint(h.point)));
+            const wallDist = wallHit ? wallHit.distance : Infinity;
 
             bots.forEach(b => {
                 if (b.group.visible) {
@@ -511,8 +543,6 @@
 
                 if (isMouseDown && STATS.PLAYER.WEAPONS[weapon].AUTO) handleShoot();
                 bots.forEach(b => b.update());
-
-                // Idle Animation
                 weaponGroup.position.y = Math.sin(Date.now() * 0.005) * 0.01;
             }
             renderer.render(scene, camera);
@@ -522,9 +552,7 @@
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
             if (e.code === 'Digit1') { weapon = 'MAGNUM'; ammo = 10; reserve = 30; updateWeaponModel(); updateUI(); }
-            if (e.code === 'Digit2' && ammo === 10) { // Simula desbloqueio preliminar ou troca
-                weapon = 'RIFLE'; ammo = 20; reserve = 60; updateWeaponModel(); updateUI();
-            }
+            if (e.code === 'Digit2') { weapon = 'RIFLE'; ammo = 20; reserve = 60; updateWeaponModel(); updateUI(); }
             if (e.code === 'KeyR') reload();
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
@@ -544,7 +572,7 @@
                 coins -= 50; weapon = 'RIFLE'; ammo = 20; reserve = 60;
                 updateWeaponModel(); updateUI();
                 document.getElementById('victory-overlay').classList.add('hidden');
-                location.reload(); // Reinicia com a nova arma
+                controls.lock(); // Keep playing
             }
         };
 
