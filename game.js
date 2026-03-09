@@ -25,22 +25,42 @@ let isMoving = false;
 let isJumping = false;
 const keys = {};
 
-// --- ÁUDIO (SFX) ---
+// --- SISTEMA DE ÁUDIO ROBUSTO ---
 const somTiro = new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_783d10a102.mp3');
-const sfx = {
-    shot: somTiro,
-    click: new Audio('assets/click.mp3'),
-    reload: new Audio('assets/reload.mp3')
-};
-sfx.shot.volume = 1.0; // Volume Máximo: Potência Total da Magnum .357
-sfx.click.volume = 0.3;
-sfx.reload.volume = 0.5;
+const somClick = new Audio('assets/click.mp3');
+const somReload = new Audio('assets/reload.mp3');
 
-function playSfx(id) {
-    if (sfx[id]) {
-        sfx[id].currentTime = 0;
-        sfx[id].play().catch(e => console.warn("Erro ao tocar áudio:", id));
+// Configuração inicial de volume
+somTiro.volume = 1.0;
+somClick.volume = 0.3;
+somReload.volume = 0.5;
+
+let audioUnlocked = false;
+
+function playSfx(type) {
+    console.log("SFX Triggered:", type); // Verificador no console
+    let target = null;
+    if (type === 'shot') target = somTiro;
+    if (type === 'click') target = somClick;
+    if (type === 'reload') target = somReload;
+
+    if (target) {
+        target.currentTime = 0;
+        target.play().catch(e => {
+            console.warn("Navegador bloqueou áudio ou arquivo não carregou:", e);
+        });
     }
+}
+
+// Função para destravar o áudio no primeiro clique do usuário
+function unlockAudio() {
+    if (audioUnlocked) return;
+    // Tenta dar play e pause imediatos nos sons para que o navegador registre a intenção do usuário
+    [somTiro, somClick, somReload].forEach(a => {
+        a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => { });
+    });
+    audioUnlocked = true;
+    console.log("Áudio Destravado com Sucesso!");
 }
 
 let bots = [];
@@ -487,6 +507,9 @@ function resetGame() {
 
     // Reset Bots
     bots.forEach(b => b.respawn());
+
+    // Destrava Áudio no Hardware
+    unlockAudio();
 
     controls.lock();
     updateUI();
