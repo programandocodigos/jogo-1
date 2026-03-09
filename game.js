@@ -9,7 +9,7 @@ console.log("BOX FIGHT 3D - VERSÃO 2.1 (FIX ESTABILIDADE) CARREGADA");
 
 // --- CONFIGURAÇÕES ---
 const STATS = {
-    PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG: 10, TOTAL: 30, RELOAD: 2500, RADIUS: 0.8 },
+    PLAYER: { HP: 100, DAMAGE: 30, SPEED: 0.16, MAG: 10, TOTAL: 40, RELOAD: 2500, RADIUS: 0.8 },
     BOT: { HP: 100, DAMAGE: 40, SPEED: 0.1, ACCURACY: 0.55, SPREAD: 0.035, REACTION: 500, STOP_DIST: 12, STRAFE_SPEED: 0.06, RADIUS: 0.7 }
 };
 
@@ -18,8 +18,8 @@ let gameState = 'START';
 let currentPhase = 1;
 let playerHp = 100;
 let botHp = 100;
-let currentMag = STATS.PLAYER.MAG;
-let reserveAmmo = STATS.PLAYER.TOTAL - STATS.PLAYER.MAG;
+let currentMag = 10;
+let reserveAmmo = 30;
 let isReloading = false;
 let isMoving = false;
 let isJumping = false;
@@ -331,20 +331,24 @@ function handleShoot() {
 }
 
 function handleReload() {
-    if (isReloading || reserveAmmo <= 0) return;
+    if (isReloading || reserveAmmo <= 0 || currentMag === STATS.PLAYER.MAG) return;
     isReloading = true;
 
-    // Feedback visual (arma abaixa um pouco)
-    weaponGroup.position.y -= 0.1;
+    // Feedback visual (abaixa a Magnum)
+    if (weaponGroup) weaponGroup.position.y -= 0.15;
 
     setTimeout(() => {
-        const toLoad = Math.min(STATS.PLAYER.MAG - currentMag, reserveAmmo);
-        currentMag += toLoad;
+        const needed = STATS.PLAYER.MAG - currentMag;
+        const toLoad = Math.min(needed, reserveAmmo);
+
+        // Processamento: Subtrai da reserva e repõe o pente
         reserveAmmo -= toLoad;
+        currentMag += toLoad;
+
         isReloading = false;
-        weaponGroup.position.y += 0.1;
+        if (weaponGroup) weaponGroup.position.y += 0.15; // Libera arma
         updateUI();
-    }, STATS.PLAYER.RELOAD);
+    }, 2500); // 2.5 Segundos Cronometrados
 }
 
 function updateUI() {
@@ -355,7 +359,7 @@ function updateUI() {
     const ammoCount = document.getElementById('ammo-count');
     const ammoTotal = document.getElementById('total-ammo');
     if (ammoCount) ammoCount.innerText = currentMag;
-    if (ammoTotal) ammoTotal.innerText = reserveAmmo + currentMag;
+    if (ammoTotal) ammoTotal.innerText = reserveAmmo; // FOCO: Mostra a Reserva (ex: 30)
 }
 
 function checkGameState() {
@@ -443,8 +447,9 @@ document.getElementById('reset-btn').addEventListener('click', () => resetGame()
 function resetGame() {
     // RESET TOTAL
     playerHp = 100; botHp = 100;
-    currentMag = STATS.PLAYER.MAG;
-    reserveAmmo = STATS.PLAYER.TOTAL - STATS.PLAYER.MAG;
+    currentMag = 10;
+    reserveAmmo = 30;
+    isReloading = false;
 
     document.getElementById('start-overlay').classList.add('hidden');
     document.getElementById('game-over-overlay').classList.add('hidden');
